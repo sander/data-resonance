@@ -1,17 +1,42 @@
 (ns wifi.core
   (:require [quil.core :as q]
-            [overtone.core :as overtone]
+            ;[overtone.core :as overtone]
             [clojure.core.async :as async]
             [clojure.core.async.lab :as async-lab])
   (:gen-class))
 
-(defn start-overtone []
-  (defonce sc-server (overtone/boot-server))
-  (def pop-sample (overtone/sample "/System/Library/Sounds/Pop.aiff"))
-  (def tink-sample (overtone/sample "/System/Library/Sounds/Tink.aiff")))
+;(defonce sc-server (overtone/boot-server))
+;(def pop-sample (overtone/sample "/System/Library/Sounds/Pop.aiff"))
+;(def tink-sample (overtone/sample "/System/Library/Sounds/Tink.aiff"))
+
+(def fields {:frame.number read-string
+              ;:ip.addr
+             :wlan.sa identity
+             :wlan.da identity
+             :wlan.fc.type #(let [v (read-string %)]
+                             (case v
+                               0 :management
+                               1 :control
+                               2 :data
+                               v))
+             :wlan.fc.subtype #(let [v (read-string %)]
+                                (case v
+                                  0 :association-request
+                                  1 :association-response
+                                  4 :probe-request
+                                  5 :prober-response
+                                  8 :beacon
+                                  11 :authentication
+                                  12 :deauthentication
+                                  v))
+              :data.len read-string})
+; right click in wireshark, apply as filter > selected
+
+(def cmd ["tshark" "-Il" "-s96"])
+(def cmd (vec (concat ["tshark" "-Tfields" "-Il"] (flatten (map (fn [f] ["-e" (name f)]) (keys fields))))))
 
 (defn sniff []
-  (let [process (.start (ProcessBuilder. ["tshark" "-Il" "-s96"]))
+  (let [process (.start (ProcessBuilder. cmd))
         stdout (.getInputStream process)
         reader (clojure.java.io/reader stdout)
         lines (line-seq reader)
@@ -22,34 +47,40 @@
        (.destroy process)
        ;(async/close! ch)
        )]))
-(def regex #"^\s*(\d+)\s+(\d+)\.(\d+)\s+([^\s]+)\s+([^\s]+) -> ([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+(.+)$")
-(defn split [result]
-  (sequence (map (fn [v]
-                   (zipmap '(:seq :s :us :from :from-role :to :to-role :protocol :data)
-                           (rest (re-find regex v))))) (first result)))
-(defn parse-line
-  ([result type [ffirst & nrest :as items]]
-   (case type
-     :seq (assoc (parse-line result :time nrest) :seq (read-string ffirst) :original items)
-     :time (assoc (parse-line result :from nrest) :time (read-string ffirst))
-     :from (if (= ffirst "->")
-             (parse-line result :to nrest)
-             (if-not (= (first nrest) "->")
-               (assoc (parse-line result :to (rest (rest nrest))) :from ffirst :from-type (first nrest))
-               (assoc (parse-line result :to (rest nrest)) :from ffirst)))
-     :to (if-not (= (first nrest) "->")
-           (assoc (parse-line result :protocol (rest nrest)) :to ffirst :to-type (first nrest))
-           (assoc (parse-line result :protocol nrest) :to ffirst))
-     :protocol (assoc (parse-line result :data nrest) :protocol ffirst)
-     result)))
-(defn easier-split [result]
-  (sequence (map (fn [v]
-                   (parse-line {} :seq (-> v
-                                           (clojure.string/trim)
-                                           (clojure.string/split #"\s+"))))) (first result)))
-(def res (sniff))
-(def es (easier-split res))
-(for [line (take 100 es)] (println line))
+
+(defn processed [result]
+  (->> (first result)
+       (sequence (map (fn [v]
+                        (zipmap (keys fields) (clojure.string/split v #"\t")))))
+       (sequence (map (fn [v]
+                        (reduce-kv (fn [m k v]
+                                     (assoc m k ((k fields) v))) {} v))))))
+
+(def result (sniff))
+(def proc (processed result))
+(def only-data
+  (filter #(= (:wlan.fc.type %) :data) proc))
+;((second result))
+(for [line (take 20 proc)]
+  (println line))
+
+(def counter (atom 0))
+
+(def ch (async-lab/spool only-data))
+;(async/close! ch)
+(async/go-loop []
+               (async/<! ch)
+               (swap! counter inc)
+               ;(pop-sample)
+               (recur))
+
+(def total (atom 0))
+(def lastp (atom nil))
+(def ch (async-lab/spool proc))
+(async/go-loop []
+               (reset! lastp (async/<! ch))
+               (swap! total inc)
+               (recur))
 
 (defn sketch []
   (defn setup []
