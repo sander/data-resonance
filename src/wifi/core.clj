@@ -1,115 +1,55 @@
 (ns wifi.core
   (:require [quil.core :as q]
-            ;[overtone.core :as overtone]
+            [overtone.core :as overtone]
             [clojure.core.async :as async]
-            [clojure.core.async.lab :as async-lab]
-            ;[clojure.java.shell :refer [sh]]
-            [me.raynes.conch.low-level :as sh]
-            [clojure.java.io :refer [copy]])
-  ;(:import (net.sourceforge.jpcap.capture PacketCapture PacketListener))
+            [clojure.core.async.lab :as async-lab])
   (:gen-class))
 
-(comment
+(defn start-overtone []
   (defonce sc-server (overtone/boot-server))
   (def pop-sample (overtone/sample "/System/Library/Sounds/Pop.aiff"))
   (def tink-sample (overtone/sample "/System/Library/Sounds/Tink.aiff")))
 
-(def counter (atom 0))
-(def promiscuous true)
-(def snaplen 96)
-(def timeout 1)
-
-(comment
-  (defn shell-handler
-    [f proc-desc args]
-    (let [process (.start (ProcessBuilder. args))
-          input (.getInputStream process)
-          error-input (.getErrorStream process)
-          output (.getOutputStream process)
-          writer (io/writer output)]
-      (handle-output (io/reader input)
-                     (f (str proc-desc ":out")))
-      (handle-output (io/reader error-input)
-                     (f (str proc-desc ":err")))
-      {:close #(.close output)
-       :write (fn [s]
-                (.write writer s)
-                (.flush writer))})))
-
 (defn sniff []
   (let [process (.start (ProcessBuilder. ["tshark" "-Il" "-s96"]))
         stdout (.getInputStream process)
-        reader (clojure.java.io/reader input)
+        reader (clojure.java.io/reader stdout)
         lines (line-seq reader)
-        ch (lab/spool lines)]
-    [ch
+        ;ch (async-lab/spool lines)
+        ]
+    [lines
      (fn []
        (.destroy process)
-       (async/close! ch))]))
-(comment
-  (def process (.start (ProcessBuilder. ["tshark"])))
-  (def input (.getInputStream process))
-  (def error-input (.getErrorStream process))
-  (def output (.getOutputStream process))
-  (def myreader (clojure.java.io/reader input))
-  (def lines (line-seq myreader)))
-
-(comment
-  (def p (sh/proc "tshark"))
-  (def out (atom "unset"))
-  (def rdr (clojure.java.io/reader (:out p)))
-  (async/thread
-    (reset! out (line-seq rdr)))
-  (with-open [rdr (clojure.java.io/reader (:out p))]
-    (reset! out (line-seq rdr))))
-
-(comment
-  (def writer (java.io.StringWriter.))
-  (programs tshark))
-
-(comment
-  (def process
-    (.exec (Runtime/getRuntime) "tshark -Il -T pdml -s96"))
-  (def process)
-  (comment
-    (with-open [stdout (.getInputStream process)
-                bout (java.io.StringWriter.)]
-      (copy stdout bout :encoding (.name (java.nio.charset.Charset/defaultCharset)))
-      (.toString bout)))
-  (let [stdout (.getInputStream process)
-        reader (java.io.BufferedReader. (java.io.InputStreamReader. stdout))]
-    (def r reader))
-  (.destroy process))
-
-; how to put card in monitoring mode?
-; also listen in to dropped packets?
-
-(defn listen []
-  (def pcap (PacketCapture.))
-  (def device (.findDevice pcap))
-  (.open pcap device snaplen promiscuous timeout)
-  (.addPacketListener pcap (proxy [PacketListener] []
-                             (packetArrived [packet]
-                               ;(println "arrived" (.getName (class packet)))
-                               (swap! counter inc)
-                               ;(pop-sample)
-                               )))
-  (async/thread
-    (.capture pcap -1)
-    ;(.endCapture pcap)
-    (.close pcap)
-    (println "closed")))
-;; need control: don't want to wait for 10 packets
-;; was a timeout setting in C
-
-;(def minim (Minim. (proxy)))
-
-; print last packet info?
-; then: collect bar charts
-
-;; appears that jpacp doesn't do rfmon.
-;; easiest would be to run a c program that prints the data to stdout,
-;; then parse..., eg tcpdump
+       ;(async/close! ch)
+       )]))
+(def regex #"^\s*(\d+)\s+(\d+)\.(\d+)\s+([^\s]+)\s+([^\s]+) -> ([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+(.+)$")
+(defn split [result]
+  (sequence (map (fn [v]
+                   (zipmap '(:seq :s :us :from :from-role :to :to-role :protocol :data)
+                           (rest (re-find regex v))))) (first result)))
+(defn parse-line
+  ([result type [ffirst & nrest :as items]]
+   (case type
+     :seq (assoc (parse-line result :time nrest) :seq (read-string ffirst) :original items)
+     :time (assoc (parse-line result :from nrest) :time (read-string ffirst))
+     :from (if (= ffirst "->")
+             (parse-line result :to nrest)
+             (if-not (= (first nrest) "->")
+               (assoc (parse-line result :to (rest (rest nrest))) :from ffirst :from-type (first nrest))
+               (assoc (parse-line result :to (rest nrest)) :from ffirst)))
+     :to (if-not (= (first nrest) "->")
+           (assoc (parse-line result :protocol (rest nrest)) :to ffirst :to-type (first nrest))
+           (assoc (parse-line result :protocol nrest) :to ffirst))
+     :protocol (assoc (parse-line result :data nrest) :protocol ffirst)
+     result)))
+(defn easier-split [result]
+  (sequence (map (fn [v]
+                   (parse-line {} :seq (-> v
+                                           (clojure.string/trim)
+                                           (clojure.string/split #"\s+"))))) (first result)))
+(def res (sniff))
+(def es (easier-split res))
+(for [line (take 100 es)] (println line))
 
 (defn sketch []
   (defn setup []
