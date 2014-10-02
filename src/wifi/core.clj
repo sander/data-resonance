@@ -10,6 +10,9 @@
 (def pop-sample (overtone/sample "/System/Library/Sounds/Pop.aiff"))
 (def tink-sample (overtone/sample "/System/Library/Sounds/Tink.aiff"))
 
+(defn millis []
+  (System/currentTimeMillis))
+
 (def fields {:frame.number read-string
               ;:ip.addr
              :wlan.sa identity
@@ -30,7 +33,8 @@
                                   11 :authentication
                                   12 :deauthentication
                                   v))
-              :data.len read-string})
+              :data.len read-string
+              :data.data identity})
 ; right click in wireshark, apply as filter > selected
 
 (def cmd ["tshark" "-Il" "-s96"])
@@ -103,21 +107,26 @@
 ;; counter
 (def interval 1000)
 (def ival-count (atom 0))
-(def delay (atom 1000))
+(def mdelay (atom 1000))
 (def delay-based-on (atom 0))
 (def factor 50)
 (def ch5 (async-lab/spool only-data))
+
+(def anim-start (atom (millis)))
+(def anim-duration interval)
+
 (async/go-loop []
                (let [p (async/<! ch5)]
                  (swap! ival-count inc)
                  (recur)))
 (async/go-loop []
                (async/<! (async/timeout interval))
-               (reset! delay (if (> @ival-count 0)
+               (reset! mdelay (if (> @ival-count 0)
                                (int (* factor (/ interval (double @ival-count))))
                                interval))
                (reset! delay-based-on @ival-count)
                (reset! ival-count 0)
+               (reset! anim-start (millis))
                (recur))
 
 ;; own sounds
@@ -142,11 +151,32 @@
 ;;delay is too big
 
 ;; play sounds
+(def color (atom 255))
+(def color-duration 50)
 (async/go-loop []
                (if (= @delay-based-on 0)
                  nil
-                 (pop-sample))
-               (async/<! (async/timeout @delay))
+                 (do
+                   (reset! color 0)
+                   (if (> @mdelay color-duration)
+                     (async/go
+                       (async/<! (async/timeout color-duration))
+                       (reset! color 255)))
+                   (pop-sample)))
+               (async/<! (async/timeout @mdelay))
+               (recur))
+
+(def show-lines 20)
+(def lines-buffer (async/sliding-buffer show-lines))
+(def lines-chan (async/chan lines-buffer))
+(def ch7 (async-lab/spool only-data))
+(defn slide-loop []
+  (let [p (async/<!! ch7)]
+    (if-not (nil? p)
+      (if-not (nil? (:data.data p))
+        (async/put! lines-chan (:data.data p))))))
+(async/go-loop []
+               (slide-loop)
                (recur))
 
 ;; may be interesting to differentiate signals sent by the most present MAC address (probably the router)
@@ -160,19 +190,37 @@
     ;(q/stroke (q/random 255) 0 0)
     ;(q/stroke-weight (q/random 10))
     ;(q/fill 0 0 (q/random 255))
-    (q/background 0)
-    (q/text (str @counter "/" @total " (" @own-count ")") 0 30)
-    (q/text (str @lastp) 0 60)
-    (q/text (reduce
-              str
-              (map
-                (fn [[addr count]]
-                  (str addr ": " count "\n"))
-                (take 5 (rseq @addresses))))
-            0 90)
-
+    (q/background 255)
     (q/fill 255)
-    (q/ellipse (/ (q/width) 2) (/ (q/height) 2) 50)
+    (comment
+      (q/text (str @counter "/" @total " (" @own-count ")") 0 30)
+      (q/text (str @lastp) 0 60)
+      (q/text (reduce
+                str
+                (map
+                  (fn [[addr count]]
+                    (str addr ": " count "\n"))
+                  (take 5 (rseq @addresses))))
+              0 90))
+
+    (comment
+      (q/fill 100)
+      (q/push-matrix)
+      (q/text-size 18)
+      (doall (for [i (range show-lines)]
+               (do
+                 (let [l (async/<!! lines-chan)]
+                   (q/text (str l) 0 0)
+                   (q/translate 0 (/ (q/height) show-lines))))))
+      (q/pop-matrix))
+
+    (q/fill @color)
+    (let [size 100                                              ;(q/map-range (millis) @anim-start (+ @anim-start anim-duration) 50 200)
+          ]
+      ;;(println size (millis) @anim-start (+ @anim-start anim-duration))
+      (q/ellipse (/ (q/width) 2) (/ (q/height) 2) size size))
+
+    ;; record datas, stream them in the background
 
     (let [diam (q/random 100)
           ;      x (q/random (q/width))
@@ -185,7 +233,7 @@
                :title "Wi-Fi"
                :setup setup
                :draw draw
-               :size [800 200]))
+               :size [1024 768]))
 
 (defn -main
   "I don't do a whole lot ... yet."
