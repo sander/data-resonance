@@ -28,13 +28,11 @@
   [[state duration]]
   (let [start (millis)
         end (if duration (+ start duration) 0)]
-    (println "setting state" state "start" start "end" end)
     [state start end]))
 (defn- handle-tick
   [state start end]
   (if (< (millis) end)
     (do
-      (println "tick" state)
       (if (fn? state) (state (t start end)))
       [state start end])
     [nil 0 0]))
