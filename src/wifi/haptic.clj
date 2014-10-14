@@ -1,7 +1,7 @@
 (ns wifi.haptic
   (:require [serial-port :as serial]
             [quil.core :as q]
-            [clojure.core.async :as async :refer [go timeout <!]]))
+            [clojure.core.async :as async :refer [chan alts! go go-loop timeout <! >! put!]]))
 
 (def arduino (serial/open "/dev/tty.usbmodem1421"))
 (def last-motor-status (atom [0 0]))
@@ -19,9 +19,26 @@
   (serial/close arduino))
 ;;(close)
 
-(def status (atom 0))
-(serial/on-byte arduino (fn [st]
-                          (reset! status st)))
+(defn listen []
+  (let [ch (chan)
+        status (atom 0)]
+    (serial/on-byte arduino (fn [st]
+                              (when (not= @status st)
+                                (case st
+                                  1 (put! ch :release)
+                                  2 (put! ch :press)))
+                              (reset! status st)))
+    ch))
+(defn unlisten []
+  (serial/remove-listener arduino))
+(defn ix [touch stop]
+  (go-loop []
+           (let [[msg c] (alts! [touch stop])]
+             (condp = [msg c]
+               [:release touch] (reset)
+               [:press touch] (sink-slowly)
+               nil)
+             (if (not= c stop) (recur)))))
 
 (defmacro dotime [expr]
   `(let [start# (System/nanoTime)]
