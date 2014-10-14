@@ -83,21 +83,13 @@
                  source (condp = state
                           ::init
                           (do (>! c v)
-                              (recur ::debouncing
-                                     (conj cs (timeout msecs))
-                                     nil))
+                              (recur ::debouncing (conj cs (timeout msecs)) nil))
                           ::debouncing
-                          (recur state
-                                 (conj (pop cs) (timeout msecs))
-                                 v))
-                 threshold (do (if next
-                                 (do (>! c next)
-                                     (recur ::debouncing
-                                            (conj (pop cs) (timeout msecs))
-                                            nil))
-                                 (recur ::init
-                                        (pop cs)
-                                        nil))))))
+                          (recur state (conj (pop cs) (timeout msecs)) v))
+                 threshold (if next
+                             (do (>! c next)
+                                 (recur ::debouncing (conj (pop cs) (timeout msecs)) nil))
+                             (recur ::init (pop cs) nil)))))
     c))
 
 (defonce ix-instance (atom nil))
