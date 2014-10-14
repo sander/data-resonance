@@ -12,44 +12,61 @@
 (defn set-motors [m1 m2]
   (reset! last-motor-status [m1 m2])
   (serial/write arduino (byte-array [255 m1 m2])))
+(defn manual []
+  (reset! last-motor-status [0 0])
+  (serial/write arduino (byte-array [254])))
 (defn close []
   (serial/close arduino))
 ;;(close)
 
-;; todo: function 'vibrate', function 'reset', function 'go down slowly'
+(def status (atom 0))
+(serial/on-byte arduino (fn [st]
+                          (reset! status st)))
+
 (defmacro dotime [expr]
   `(let [start# (System/nanoTime)]
      ~expr
      (/ (double (- (System/nanoTime) start#)) 1e6)))
+(def vibrating (atom false))
 (defn vibrate
   ([] (vibrate 100))
   ([duration] (vibrate duration 1))
   ([duration intensity] (vibrate duration intensity 60))
   ([duration intensity fps]
    (go
-     (let [ms (/ 1000 fps)
-           times (Math/round (float (/ duration ms 2)))
-           [v10 v20] @last-motor-status
-           v11 v10
-           v12 (+ v11 intensity)
-           v21 v20
-           v22 (+ v21 intensity)]
-       (doseq [i (range times)]
-         (<! (timeout (- ms (dotime (set-motors v11 v21)))))
-         (<! (timeout (- ms (dotime (set-motors v12 v22))))))
-       (set-motors v10 v20)))))
+     (when (not @vibrating)
+       (let [ms (/ 1000 fps)
+             times (Math/round (float (/ duration ms 2)))
+             [v10 v20] @last-motor-status
+             v11 v10
+             v12 (+ v11 intensity)
+             v21 v20
+             v22 (+ v21 intensity)]
+         (reset! vibrating true)
+         (doseq [i (range times)]
+           (<! (timeout (- ms (dotime (set-motors v11 v21)))))
+           (<! (timeout (- ms (dotime (set-motors v12 v22)))))
+           ;;(<! (timeout (- ms (dotime (println "setting" v11 v21)))))
+           ;;(<! (timeout (- ms (dotime (println "setting2" v12 v22)))))
+           )
+         (set-motors v10 v20)
+         (reset! vibrating false))))))
 
 (defn reset []
   ;; todo
-  )
+  (set-motors 40 30))
 (defn sink-slowly []
   ;; todo
+  (set-motors 50 60)
   )
 (defn raise-slowly []
   ;; todo
   )
 
-(comment
+;(reset)
+(sink-slowly)
+
+(defn sketch []
   (defn setup []
     (q/frame-rate 30))
   (defn draw []
