@@ -108,7 +108,7 @@
    (go-loop []
             (let [[msg c] (alts! [touch stop])]
               (condp = [msg c]
-                [:release touch] (do (println "release") (move flat 300))
-                [:press touch] (do (println "press") (move sunken 100))
+                [:release touch] (move flat 300)
+                [:press touch] (move sunken 100)
                 nil)
               (if (not= c stop) (recur))))))
