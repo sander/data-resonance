@@ -1,7 +1,8 @@
 (ns wifi.box
-  (:require [wifi.haptic :as hap]
+  (:require [wifi.interaction :as ix]
             [wifi.sniffer :as sn]
-            [clojure.core.async :as async]))
+            [clojure.core.async :as async]
+            [wifi.haptic :as hap]))
 
 (def running (atom true))
 
@@ -17,7 +18,7 @@
 (def interval 1000)
 (def sound-delay (atom interval))
 (def sound-delay-based-on (atom 0))
-(def sound-delay-factor 600)
+(def sound-delay-factor 100)
 
 (def only-data (async/chan))
 (async/sub (:pub sniff) :data only-data)
@@ -45,8 +46,8 @@
           (reset! color 255)
           (if with-arduino
             (firmata/set-digital board 2 :low)))))
-
-    (hap/vibrate 60 4 60))
+    (println "vibrate")
+    (ix/vibrate 60 4 1))
   (async/<!! (async/timeout @sound-delay)))
 (async/go (while @running
             (sound-play-loop)))
