@@ -1,7 +1,7 @@
 (ns wifi.interaction
   (:require [wifi.haptic :as hap]
             [wifi.animation :as ani]
-            [clojure.core.async :refer [chan put! go-loop go alts! >! <!! timeout]]))
+            [clojure.core.async :refer [chan put! <! go-loop go alts! >! <!! timeout]]))
 
 (def flat [40 30])
 (def sunken [50 60])
@@ -38,6 +38,7 @@
 
 (defn move
   [[p1 p2] dur]
+  (hap/disable-vibration! dur)
   (let [[s1 s2] @hap/last-motor-status]
     (ani/set-state motor
                    #(hap/set-motors

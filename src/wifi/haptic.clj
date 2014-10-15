@@ -53,19 +53,43 @@
   []
   (serial/remove-listener @port))
 
-(comment
-  (defn sketch []
-   (defn setup []
-     (q/frame-rate 30))
-   (defn draw []
-     (q/background 255)
-     (q/fill 0)
-     (let [m1 (q/round (q/map-range (q/mouse-x) 0 (q/width) 0 180))
-           m2 (q/round (q/map-range (q/mouse-y) 0 (q/height) 0 180))]
-       (q/text (str m1 ":" m2) 50 50)
-       (set-motors m1 m2)))
-   (q/defsketch testsketch
-                :title "motor test"
-                :setup setup
-                :draw draw
-                :size [600 400])))
+(defonce vibration-intensity (atom 1))
+(defonce vibration-skip (atom 1))
+(def vibrating (atom false))
+(def vibration-enabled (atom true))
+(def vibration-up (atom false))
+(def fps 60)
+(def vibration-ms (/ 1000 fps))
+(def vibration-active (atom false))
+
+(defn should-vibrate?
+  []
+  (and @vibration-enabled @vibrating))
+
+(defn vibrate
+  []
+  (when (not @vibration-active)
+    (reset! vibration-active true)
+    (go-loop
+      []
+      (when (should-vibrate?)
+        (let [add ((if @vibration-up - +) @vibration-intensity)]
+          (apply set-motors (map #(+ add %) @last-motor-status)))
+        (swap! vibration-up not)
+        (<! (timeout vibration-ms)))
+      (if @vibrating
+        (recur)
+        (reset! vibration-active false)))))
+
+(defn disable-vibration!
+  [dur]
+  (reset! vibration-enabled false)
+  (go
+    (<! (timeout dur))
+    (reset! vibration-enabled true)))
+
+(defn set-vibrating!
+  [v]
+  (when (not= @vibrating v)
+    (reset! vibrating v)
+    (if v (vibrate))))

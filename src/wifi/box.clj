@@ -46,7 +46,6 @@
           (reset! color 255)
           (if with-arduino
             (firmata/set-digital board 2 :low)))))
-    (println "vibrate")
     (ix/vibrate 60 4 1))
   (async/<!! (async/timeout @sound-delay)))
 (async/go (while @running
