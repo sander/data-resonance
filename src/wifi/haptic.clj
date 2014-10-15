@@ -3,19 +3,6 @@
             ;[quil.core :as q]
             [clojure.core.async :as async :refer [chan alts! go go-loop timeout <! >! put!]]))
 
-(comment
-  ;; path => serial-port
-  (def connections (atom {}))
-
-  (defn connect
-    ([path]
-     (if-let [conn (get @connections path)]
-       (serial/close conn))
-     (let [port (serial/open path)]
-       (swap! connections assoc path port)
-       port))
-    ([] (connect "/dev/tty.usbmodem1421"))))
-
 (defn open
   "Opens the connection to Arduino."
   ([path] (serial/open path))
@@ -35,8 +22,6 @@
 
 (def last-motor-status (atom [0 0]))
 
-;(def fps 60)
-
 (defn set-motors
   "Sets the motor positions to m1 and m2."
   [m1 m2]
@@ -48,22 +33,6 @@
   []
   (reset! last-motor-status [0 0])
   (serial/write @port (byte-array [254])))
-
-;;(close)
-
-(comment
-  (defn reset
-    []
-    ;; todo
-    (set-motors 40 30))
-  (defn sink-slowly
-    []
-    ;; todo
-    (set-motors 50 60)
-    )
-  (defn raise-slowly []
-    ;; todo
-    ))
 
 (defn listen
   "Listens to touch events from Arduino and puts :press or :release on the return channel."

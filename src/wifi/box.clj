@@ -52,6 +52,9 @@
 (async/go (while @running
             (sound-play-loop)))
 
+;; do touch stuff
+(ix/ix)
+
 (defn stop []
   (reset! running false)
   (async/unsub-all (:pub sniff))
