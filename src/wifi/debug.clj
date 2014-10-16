@@ -11,12 +11,28 @@
 (def vib-delay-factor 100)
 (def vib-duration 60)
 
+(def manual (atom {:touch nil
+                   :dist nil
+                   :last-touch nil
+                   :last-dist nil}))
 (def auto (atom {:sniff nil
                  :vib-delay interval
                  :vib-delay-based-on 0}))
 
 (defn start-manual-mode!
-  [])
+  []
+  (let [[touch dist :as bla] (hap/listen2)]
+    (swap! manual assoc
+           :touch (ix/semidebounce touch 100)
+           :dist dist)
+    (async/go (while (= @mode ::manual)
+                (swap! manual assoc :last-touch (async/<! (:touch @manual)))))
+    (async/go (while (= @mode ::manual)
+                (swap! manual assoc :last-dist (async/<! (:dist @manual)))))))
+
+(defn end-manual-mode!
+  []
+  (hap/unlisten))
 
 ;(def vib-delay (atom interval))
 ;(def vib-delay-based-on (atom 0))
@@ -44,12 +60,14 @@
                     (async/<!! (async/timeout (max 0 (- (@auto :vib-delay) vib-duration))))))))
     (ix/ix)
     (swap! auto assoc :sniff sniff)))
+(defn start-auto-mode! [] (ix/ix))
 
 (defn end-auto-mode!
   []
   (async/unsub-all (:pub (@auto :sniff)))
   (sn/stop (@auto :sniff))
   (@ix/ix-instance))
+(defn end-auto-mode! [] (@ix/ix-instance))
 
 (start-manual-mode!)
 
@@ -63,6 +81,7 @@
         (start-manual-mode!)
         (println "running in manual mode"))
       (do
+        (end-manual-mode!)
         (start-auto-mode!)
         (println "running in auto mode")))))
 
@@ -80,7 +99,12 @@
   (hap/set-vibrating! (q/mouse-pressed?))
   (let [m1 (q/round (q/map-range (q/mouse-x) 0 (q/width) 0 180))
         m2 (q/round (q/map-range (q/mouse-y) 0 (q/height) 0 180))]
-    (q/text (str m1 ":" m2 " " @mode " (" @hap/last-motor-status ") [" (:vib-delay-based-on @auto) "]") 50 50)
+    (q/text (str m1 ":" m2 " "
+                 @mode
+                 " (" @hap/last-motor-status ") ["
+                 (:vib-delay-based-on @auto) "] {"
+                 (:last-touch @manual) " - "
+                 (:last-dist @manual) "}") 50 50)
     (if (= @mode ::manual)
       (do
         (hap/set-motors m1 m2))))

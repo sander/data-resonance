@@ -1,10 +1,13 @@
 (ns wifi.interaction
   (:require [wifi.haptic :as hap]
             [wifi.animation :as ani]
-            [clojure.core.async :refer [chan put! <! go-loop go alts! >! <!! timeout]]))
+            [clojure.core.async :refer [chan put! <! go-loop go alts! >! <!! timeout sliding-buffer]]))
 
-(def flat [40 30])
-(def sunken [50 60])
+;(def flat [40 30])
+;(def sunken [50 60])
+
+(def flat [7 12])
+(def sunken [128 128])
 
 (def motor (ani/animator))
 
@@ -75,7 +78,7 @@
 
 (defn semidebounce
   [source msecs]
-  (let [c (chan)]
+  (let [c (chan (sliding-buffer 1))]
     (go-loop [state ::init
               [_ threshold :as cs] [source]
               next nil]
@@ -93,12 +96,39 @@
                              (recur ::init (pop cs) nil)))))
     c))
 
+;; second attempt
+(defn semidebounce
+  [source msecs]
+  (let [c (chan (sliding-buffer 1))]
+    (go-loop [state ::init
+              [_ threshold :as cs] [source]
+              next nil]
+             (let [[v sc] (alts! cs)]
+               (condp = sc
+                 source (condp = state
+                          ::init
+                          (do (>! c v)
+                              (recur ::debouncing (conj cs (timeout msecs)) nil))
+                          ::debouncing
+                          (recur state (conj (pop cs) (timeout msecs)) v))
+                 threshold (if next
+                             (do (>! c next)
+                                 (recur ::debouncing (conj (pop cs) (timeout msecs)) nil))
+                             (recur ::init (pop cs) nil)))))
+    c))
+
+;; nah try dnolen's
+(defn semidebounce
+  [source msecs]
+  (debounce source msecs))
+
 (defonce ix-instance (atom nil))
 (defn ix
   ([]
    (if @ix-instance
      (@ix-instance))
-   (let [li (semidebounce (hap/listen) 100)
+   (let [[touch dist] (hap/listen2)
+         li (semidebounce touch 100)
          st (chan)]
      (ix li st)
      (reset! ix-instance
@@ -108,6 +138,7 @@
   ([touch stop]
    (go-loop []
             (let [[msg c] (alts! [touch stop])]
+              (println "msg" msg)
               (condp = [msg c]
                 [:release touch] (move flat 300)
                 [:press touch] (move sunken 100)

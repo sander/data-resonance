@@ -1,7 +1,7 @@
 (ns wifi.haptic
   (:require [serial-port :as serial]
             ;[quil.core :as q]
-            [clojure.core.async :as async :refer [chan alts! go go-loop timeout <! >! put!]]))
+            [clojure.core.async :as async :refer [chan alts! go go-loop timeout <! >! put! sliding-buffer]]))
 
 (defn open
   "Opens the connection to Arduino."
@@ -35,7 +35,8 @@
   (serial/write @port (byte-array [254])))
 
 (defn listen
-  "Listens to touch events from Arduino and puts :press or :release on the return channel."
+  "Listens to touch events from Arduino and puts :press or :release on the return channel.
+  NOT USEABLE ANYMORE!"
   []
   (let [ch (chan)
         status (atom 0)]
@@ -47,6 +48,26 @@
                                 nil))
                             (reset! status st)))
     ch))
+
+(defn interpret
+  [s]
+  (if (> s 127)
+    [true (- s 128)]
+    [false s]))
+(defn listen2
+  []
+  (let [touch (chan (sliding-buffer 1))
+        dist (chan (sliding-buffer 1))
+        touch-status (atom 0)
+        dist-status (atom 0)]
+    (serial/on-byte @port (fn [st]
+                            (let [[t d] (interpret st)]
+                              (when (not= @touch-status t)
+                                (println "\ttouch" t)
+                                (put! touch (if (reset! touch-status t) :press :release)))
+                              (when (not= @dist-status d)
+                                (put! dist (reset! dist-status d))))))
+    [touch dist]))
 
 (defn unlisten
   "Stops listening to touch events."
