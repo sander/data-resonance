@@ -21,9 +21,10 @@
 
 (defn start-manual-mode!
   []
-  (let [[touch dist :as bla] (hap/listen2)]
+  (let [[touch dist] (hap/listen3)]
     (swap! manual assoc
-           :touch (ix/semidebounce touch 100)
+           :touch touch
+           ;(ix/semidebounce touch 100)
            :dist dist)
     (async/go (while (= @mode ::manual)
                 (swap! manual assoc :last-touch (async/<! (:touch @manual)))))
@@ -61,6 +62,7 @@
     (ix/ix)
     (swap! auto assoc :sniff sniff)))
 (defn start-auto-mode! [] (ix/ix))
+;; todo tmp
 
 (defn end-auto-mode!
   []

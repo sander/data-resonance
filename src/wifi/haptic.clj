@@ -66,7 +66,28 @@
                                 (println "\ttouch" t)
                                 (put! touch (if (reset! touch-status t) :press :release)))
                               (when (not= @dist-status d)
+                                (println "dist" d)
                                 (put! dist (reset! dist-status d))))))
+    [touch dist]))
+
+(defn listen3
+  []
+  (let [touch (chan (sliding-buffer 1))
+        dist (chan (sliding-buffer 1))
+        touch-status (atom 0)
+        dist-status (atom 0)
+        current (atom :touch)]
+    (serial/on-byte @port (fn [b]
+                            (if (= b 0)
+                              (reset! current :touch)
+                              (do
+                                ;; it is a value
+                                (if (= @current :touch)
+                                  (if (not= @touch-status b)
+                                    (put! touch (reset! touch-status b)))
+                                  (if (not= @dist-status b)
+                                    (put! dist (reset! dist-status b))))
+                                (swap! current #(if (= % :touch) :dist :touch))))))
     [touch dist]))
 
 (defn unlisten

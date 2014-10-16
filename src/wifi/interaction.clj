@@ -138,7 +138,6 @@
   ([touch stop]
    (go-loop []
             (let [[msg c] (alts! [touch stop])]
-              (println "msg" msg)
               (condp = [msg c]
                 [:release touch] (move flat 300)
                 [:press touch] (move sunken 100)
