@@ -87,6 +87,30 @@
         (start-auto-mode!)
         (println "running in auto mode")))))
 
+(def bar-label-width 120)
+(def bar-width 120)
+(def bar-height 30)
+(defn draw-bar
+  [pos label value min max]
+  (let [y (- (q/height) (* (inc pos) bar-height))]
+    (q/fill 0)
+    (q/text-align :right :center)
+    (q/text label
+            (- bar-label-width 10)
+            (+ (* 0.5 bar-height) y))
+    (q/rect bar-label-width
+            y
+            bar-width
+            bar-height)
+    (q/fill 100)
+    (q/rect bar-label-width
+            y
+            (q/map-range value min max 0 bar-width)
+            bar-height)
+    (q/fill 255)
+    (q/text (str value)
+            (+ bar-label-width bar-width -10)
+            (+ (* 0.5 bar-height) y))))
 (defn setup []
   (q/frame-rate 30))
 (defn draw []
@@ -98,21 +122,36 @@
   (let [invert false]
     (q/background (if invert 0 255))
     (q/fill (if invert 255 0)))
-  (hap/set-vibrating! (q/mouse-pressed?))
   (let [m1 (q/round (q/map-range (q/mouse-x) 0 (q/width) 0 180))
         m2 (q/round (q/map-range (q/mouse-y) 0 (q/height) 0 180))]
-    (q/text (str m1 ":" m2 " "
-                 @mode
-                 " (" @hap/last-motor-status ") ["
-                 (:vib-delay-based-on @auto) "] {"
-                 (:last-touch @manual) " - "
-                 (:last-dist @manual) "}") 50 50)
+    (q/text-align :left :top)
+    (q/text (str @mode " "
+                 (:vib-delay-based-on @auto))
+            50 50)
     (if (= @mode ::manual)
       (do
+        (hap/set-vibrating! (q/mouse-pressed?))
         (hap/set-motors m1 m2))))
-  (q/fill 0)
-  (if @hap/vibrating
-    (q/rect 100 100 20 20)))
+  (draw-bar 0 "touch" (:last-touch @manual) 0 255)
+  (draw-bar 1 "distance" (:last-dist @manual) 0 127)
+  (draw-bar 2 "motor 2" (@hap/last-motor-status 1) 0 180)
+  (draw-bar 3 "motor 1" (@hap/last-motor-status 0) 0 180)
+  (draw-bar 4 "vibrating" (if @hap/vibrating 1 0) 0 1)
+  (comment
+    (let [w 30
+          h 120
+          t (- (q/height) h)]
+      (q/rect 0 t w h)
+      (q/rect w t w h)
+      (q/fill 200)
+      (let [y (/ (:last-touch @manual) 255)
+            h' (* h y)
+            y' (+ t (- h h'))]
+        (q/rect 0 y' w h))
+      (let [y (/ (:last-dist @manual) 127)
+            h' (* h y)
+            y' (+ t (- h h'))]
+        (q/rect w y' w h)))))
 (q/defsketch testsketch
              :title "motor test"
              :setup setup
