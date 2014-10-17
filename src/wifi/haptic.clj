@@ -83,9 +83,9 @@
                               (do
                                 ;; it is a value
                                 (if (= @current :touch)
-                                  (if (not= @touch-status b)
+                                  (if true                  ;(not= @touch-status b)
                                     (put! touch (reset! touch-status b)))
-                                  (if (not= @dist-status b)
+                                  (if true                  ;(not= @dist-status b)
                                     (put! dist (reset! dist-status b))))
                                 (swap! current #(if (= % :touch) :dist :touch))))))
     [touch dist]))

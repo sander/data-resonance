@@ -3,6 +3,7 @@
             [wifi.haptic :as hap]
             [wifi.interaction :as ix]
             [wifi.sniffer :as sn]
+            [wifi.animation :as anim]
             [clojure.core.async :as async]))
 
 (def mode (atom ::manual))
@@ -28,10 +29,38 @@
 (def last-touch (atom 0))
 (def last-dist (atom 0))
 
-(async/go (while                                            ;;(= @mode ::manual)
-            (reset! last-touch (async/<! touch))))
-(async/go (while                                            ;;(= @mode ::manual)
-            (reset! last-dist (async/<! dist))))
+(def last-touch-stable (atom 0))
+(def last-dist-stable (atom 0))
+
+(def stabilize-threshold 3)
+(def stabilize-timeout 200)
+
+(defn below-threshold?
+  [v w thres]
+  (< (Math/abs (- v w)) thres))
+(defn handle-value
+  [val last-time at at-stable]
+  (if (below-threshold? val @at 5)
+    (if (> (- (anim/millis) @last-time) stabilize-timeout)
+      (if (not (below-threshold? @at-stable val 5))
+        (reset! at-stable val)))
+    (reset! last-time (anim/millis)))
+  (reset! at val))
+(defn stabilize
+  [at at-stable ch]
+  (let [last-time (atom 0)]
+    (async/go (while
+                  (let [val (async/<! ch)]
+                    (handle-value val last-time at at-stable))))))
+
+(stabilize last-touch last-touch-stable touch)
+(stabilize last-dist last-dist-stable dist)
+
+(comment
+  (async/go (while                                          ;;(= @mode ::manual)
+                (reset! last-touch (async/<! touch))))
+  (async/go (while                                          ;;(= @mode ::manual)
+                (reset! last-dist (async/<! dist)))))
 
 (def auto (atom {:sniff nil
                  :vib-delay interval
@@ -126,26 +155,14 @@
       (do
         (hap/set-vibrating! (q/mouse-pressed?))
         (hap/set-motors m1 m2))))
-  (draw-bar 0 "touch" @last-touch 0 255)
-  (draw-bar 1 "distance" @last-dist 0 127)
-  (draw-bar 2 "motor 2" (@hap/last-motor-status 1) 0 180)
-  (draw-bar 3 "motor 1" (@hap/last-motor-status 0) 0 180)
-  (draw-bar 4 "vibrating" (if @hap/vibrating 1 0) 0 1)
-  (comment
-    (let [w 30
-          h 120
-          t (- (q/height) h)]
-      (q/rect 0 t w h)
-      (q/rect w t w h)
-      (q/fill 200)
-      (let [y (/ (:last-touch @manual) 255)
-            h' (* h y)
-            y' (+ t (- h h'))]
-        (q/rect 0 y' w h))
-      (let [y (/ (:last-dist @manual) 127)
-            h' (* h y)
-            y' (+ t (- h h'))]
-        (q/rect w y' w h)))))
+  (let [i (atom -1)]
+    (draw-bar (swap! i inc) "touch" @last-touch 0 255)
+    (draw-bar (swap! i inc) "touch stable" @last-touch-stable 0 255)
+    (draw-bar (swap! i inc) "distance" @last-dist 0 127)
+    (draw-bar (swap! i inc) "distance stable" @last-dist-stable 0 127)
+    (draw-bar (swap! i inc) "motor 2" (@hap/last-motor-status 1) 0 180)
+    (draw-bar (swap! i inc) "motor 1" (@hap/last-motor-status 0) 0 180)
+    (draw-bar (swap! i inc) "vibrating" (if @hap/vibrating 1 0) 0 1)))
 (q/defsketch testsketch
              :title "motor test"
              :setup setup
