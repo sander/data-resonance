@@ -8,32 +8,24 @@
 (def mode (atom ::manual))
 
 (def interval 1000)
-(def vib-delay-factor 100)
+(def vib-delay-factor 10)
 (def vib-duration 60)
 
-(def manual (atom {:touch nil
-                   :dist nil
-                   :last-touch nil
-                   :last-dist nil}))
+(def listen (hap/listen3))
+(def touch (listen 0))
+(def dist (listen 1))
+
+(def last-touch (atom 0))
+(def last-dist (atom 0))
+
+(async/go (while (= @mode ::manual)
+            (reset! last-touch (async/<! touch))))
+(async/go (while (= @mode ::manual)
+            (reset! last-dist (async/<! dist))))
+
 (def auto (atom {:sniff nil
                  :vib-delay interval
                  :vib-delay-based-on 0}))
-
-(defn start-manual-mode!
-  []
-  (let [[touch dist] (hap/listen3)]
-    (swap! manual assoc
-           :touch touch
-           ;(ix/semidebounce touch 100)
-           :dist dist)
-    (async/go (while (= @mode ::manual)
-                (swap! manual assoc :last-touch (async/<! (:touch @manual)))))
-    (async/go (while (= @mode ::manual)
-                (swap! manual assoc :last-dist (async/<! (:dist @manual)))))))
-
-(defn end-manual-mode!
-  []
-  (hap/unlisten))
 
 ;(def vib-delay (atom interval))
 ;(def vib-delay-based-on (atom 0))
@@ -48,7 +40,8 @@
                 (async/<! (async/timeout interval))
                 (swap! auto assoc :vib-delay (if (> @ival-count 0)
                                                (int (* vib-delay-factor
-                                                       (/ interval (double @ival-count))))))
+                                                       (/ interval (double @ival-count))))
+                                               interval))
                 (swap! auto assoc :vib-delay-based-on @ival-count)
                 (reset! ival-count 0)))
     (async/go (while (= @mode ::auto)
@@ -59,19 +52,15 @@
                     (async/<! (async/timeout vib-duration))
                     (hap/set-vibrating! false)
                     (async/<!! (async/timeout (max 0 (- (@auto :vib-delay) vib-duration))))))))
-    (ix/ix)
+    ;(ix/ix)
     (swap! auto assoc :sniff sniff)))
-(defn start-auto-mode! [] (ix/ix))
-;; todo tmp
 
 (defn end-auto-mode!
   []
   (async/unsub-all (:pub (@auto :sniff)))
   (sn/stop (@auto :sniff))
-  (@ix/ix-instance))
-(defn end-auto-mode! [] (@ix/ix-instance))
-
-(start-manual-mode!)
+  ;(@ix/ix-instance)
+  )
 
 (defn set-mode!
   [new-mode]
@@ -80,10 +69,8 @@
     (if (= new-mode ::manual)
       (do
         (end-auto-mode!)
-        (start-manual-mode!)
         (println "running in manual mode"))
       (do
-        (end-manual-mode!)
         (start-auto-mode!)
         (println "running in auto mode")))))
 
@@ -132,8 +119,8 @@
       (do
         (hap/set-vibrating! (q/mouse-pressed?))
         (hap/set-motors m1 m2))))
-  (draw-bar 0 "touch" (:last-touch @manual) 0 255)
-  (draw-bar 1 "distance" (:last-dist @manual) 0 127)
+  (draw-bar 0 "touch" @last-touch 0 255)
+  (draw-bar 1 "distance" @last-dist 0 127)
   (draw-bar 2 "motor 2" (@hap/last-motor-status 1) 0 180)
   (draw-bar 3 "motor 1" (@hap/last-motor-status 0) 0 180)
   (draw-bar 4 "vibrating" (if @hap/vibrating 1 0) 0 1)
