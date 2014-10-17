@@ -95,8 +95,8 @@
   []
   (serial/remove-listener @port))
 
-(defonce vibration-intensity (atom 1))
-(defonce vibration-skip (atom 1))
+(defonce vibration-intensity (atom 8))
+(defonce vibration-skip (atom 2))
 (def vibrating (atom false))
 (def vibration-enabled (atom true))
 (def vibration-up (atom false))

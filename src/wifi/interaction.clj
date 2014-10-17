@@ -7,6 +7,7 @@
 ;(def sunken [50 60])
 
 (def flat [7 12])
+(def half-sunken [68 70])
 (def sunken [128 128])
 
 (def motor (ani/animator))

@@ -6,10 +6,20 @@
             [clojure.core.async :as async]))
 
 (def mode (atom ::manual))
+;; ::auto ::manual
+
+(def submode (atom ::inactive))
+;; ::inactive ::active ::detailed
+
+(def sensor-timeout (atom 3000))
+
+;; on mode change, after x seconds fix current distance;
+;; when not vibrating and distance has changed more than threshold,
+;; consider new mode change.
 
 (def interval 1000)
-(def vib-delay-factor 10)
-(def vib-duration 60)
+(def vib-delay-factor 100)
+(def vib-duration 100)
 
 (def listen (hap/listen3))
 (def touch (listen 0))
@@ -18,17 +28,14 @@
 (def last-touch (atom 0))
 (def last-dist (atom 0))
 
-(async/go (while (= @mode ::manual)
+(async/go (while                                            ;;(= @mode ::manual)
             (reset! last-touch (async/<! touch))))
-(async/go (while (= @mode ::manual)
+(async/go (while                                            ;;(= @mode ::manual)
             (reset! last-dist (async/<! dist))))
 
 (def auto (atom {:sniff nil
                  :vib-delay interval
                  :vib-delay-based-on 0}))
-
-;(def vib-delay (atom interval))
-;(def vib-delay-based-on (atom 0))
 
 (defn start-auto-mode!
   []
