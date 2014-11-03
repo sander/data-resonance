@@ -121,7 +121,11 @@
         (<! (timeout vibration-ms)))
       (if @vibrating
         (recur)
-        (reset! vibration-active false)))))
+        (do
+          (comment
+            (if (not @vibration-up)
+              (apply set-motors (map #(- % @vibration-intensity) @last-motor-status))))
+          (reset! vibration-active false))))))
 
 (defn disable-vibration!
   [dur]

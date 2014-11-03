@@ -20,6 +20,7 @@
 
 (def interval 1000)
 (def vib-delay-factor 100)
+(def vib-delay-factor-atom (atom 100))
 (def vib-duration 100)
 
 (def listen (hap/listen3))
@@ -75,7 +76,7 @@
     (async/go (while (= @mode ::auto)
                 (async/<! (async/timeout interval))
                 (swap! auto assoc :vib-delay (if (> @ival-count 0)
-                                               (int (* vib-delay-factor
+                                               (int (* @vib-delay-factor-atom
                                                        (/ interval (double @ival-count))))
                                                interval))
                 (swap! auto assoc :vib-delay-based-on @ival-count)
@@ -154,7 +155,9 @@
     (if (= @mode ::manual)
       (do
         (hap/set-vibrating! (q/mouse-pressed?))
-        (hap/set-motors m1 m2))))
+        (hap/set-motors m1 m2))
+      (do
+        (reset! vib-delay-factor-atom (q/round (q/map-range (q/mouse-x) 0 (q/width) 1 1000))))))
   (let [i (atom -1)]
     (draw-bar (swap! i inc) "touch" @last-touch 0 255)
     (draw-bar (swap! i inc) "touch stable" @last-touch-stable 0 255)
@@ -162,7 +165,8 @@
     (draw-bar (swap! i inc) "distance stable" @last-dist-stable 0 127)
     (draw-bar (swap! i inc) "motor 2" (@hap/last-motor-status 1) 0 180)
     (draw-bar (swap! i inc) "motor 1" (@hap/last-motor-status 0) 0 180)
-    (draw-bar (swap! i inc) "vibrating" (if @hap/vibrating 1 0) 0 1)))
+    (draw-bar (swap! i inc) "vibrating" (if @hap/vibrating 1 0) 0 1)
+    (draw-bar (swap! i inc) "delay" @vib-delay-factor-atom 1 1000)))
 (q/defsketch testsketch
              :title "motor test"
              :setup setup
