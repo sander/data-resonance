@@ -67,10 +67,6 @@ int pulse() {
 
 int last_touched = 0;
 void setTouch(int touch) {
-  //Serial.print("touch: ");
-  //Serial.println(touch);
-  
-  //int touched = (touch < touch_start - touch_threshold) ? 1 : 0;
   if (touch != last_touched) {
     last_touched = touch;
   }
@@ -85,16 +81,7 @@ void setProximity(int proximity) {
 
 int last_status = 0;
 void sendStatus() {
-
-  //if (last_touched == 0) return;
   int proximity_constrained = 127 - constrain(map(last_proximity, 142, 354, 0, 127), 0, 127);
-    /*
-  int status = last_touched * 128 + proximity_constrained;
-  if (status != last_status) {
-    Serial.write(status);
-    last_status = status;
-  }
-  */
   Serial.write(0);
   Serial.write(last_touched);
   Serial.write(proximity_constrained);
