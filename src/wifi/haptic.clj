@@ -73,22 +73,94 @@
 (defn listen3
   []
   (let [touch (chan (sliding-buffer 1))
+        pressure (chan (sliding-buffer 1))
         dist (chan (sliding-buffer 1))
         touch-status (atom 0)
+        pressure-status (atom 0)
         dist-status (atom 0)
         current (atom :touch)]
     (serial/on-byte @port (fn [b]
                             (if (= b 0)
-                              (reset! current :touch)
                               (do
+                                ;(println "reset")
+                                (reset! current :touch))
+                              (do
+                                ;(println "val" @current b)
                                 ;; it is a value
-                                (if (= @current :touch)
-                                  (if true                  ;(not= @touch-status b)
-                                    (put! touch (reset! touch-status b)))
-                                  (if true                  ;(not= @dist-status b)
-                                    (put! dist (reset! dist-status b))))
-                                (swap! current #(if (= % :touch) :dist :touch))))))
-    [touch dist]))
+                                (case @current
+                                  :touch
+                                  (put! touch (reset! touch-status b))
+
+                                  :pressure
+                                  (put! pressure (reset! pressure-status b))
+
+                                  :dist
+                                  (put! dist (reset! dist-status b)))
+                                (swap! current #(case %
+                                                 :touch :pressure
+                                                 :pressure :dist
+                                                 :dist :touch))
+                                (comment
+                                  (if (= @current :touch)
+                                    (if true                ;(not= @touch-status b)
+                                      (put! touch (reset! touch-status b)))
+                                    (if true                ;(not= @dist-status b)
+                                      (put! dist (reset! dist-status b))))
+                                  (swap! current #(if (= % :touch) :dist :touch)))))))
+    [touch pressure dist]))
+
+(defn listen4
+  []
+  (let [touch (chan (sliding-buffer 1))
+        pressure (chan (sliding-buffer 1))
+        dist (chan (sliding-buffer 1))
+        touch-status (atom 0)
+        pressure-status (atom 0)
+        dist-status (atom 0)
+        current (atom :touch)
+        last (atom nil)]
+    (comment)
+    (serial/on-byte @port (fn [b]
+                            (if (= b 0)
+                              (do
+                                ;(println "reset")
+                                (reset! current :touch))
+                              (do
+                                ;(reset! last [@current b])
+                                ;(println "val" @current b)
+                                (if (and (= @current :pressure) (> b 2))
+                                  (println "val" @current b))
+                                ;; it is a value
+                                (case @current
+                                  :touch
+                                  (put! touch (reset! touch-status b))
+
+                                  :pressure
+                                  (put! pressure (reset! pressure-status b))
+
+                                  :dist
+                                  (put! dist (reset! dist-status b)))
+                                (swap! current #(case %
+                                                 :touch :pressure
+                                                 :pressure :dist
+                                                 :dist :touch))))))
+    [touch-status pressure-status dist-status last]))
+
+(defn indexes-of [e coll] (keep-indexed #(if (= e %2) %1) coll))
+(defn next-in [e cycle] (nth cycle (inc (first (indexes-of e cycle)))))
+
+(defn listen5
+  []
+  (let [sensors (cycle [:touch :pressure :dist])
+        state (atom {:current (first sensors)})]
+    (serial/on-byte @port (fn [b]
+                            (case b
+                              0 (swap! state assoc :current (first sensors))
+                              (swap! state #(let [c (:current %)]
+                                             (assoc %
+                                                    c b
+                                                    :current (next-in c sensors)))))))
+    state))
 
 (defn unlisten
   "Stops listening to touch events."

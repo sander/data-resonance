@@ -14,6 +14,11 @@ const int ir_led_pin = 13;
 const int ir_sense_pin = A0;
 const int ir_threshold = 20;
 
+const int pressure_pin = A1;
+const int pressure_threshold = 10;
+const int pressure_none = 1023;
+const int pressure_high = 128;
+
 int i = 0;
 
 Adafruit_MPR121 cap = Adafruit_MPR121();
@@ -48,7 +53,9 @@ void loop() {
   
   setTouch(cap.filteredData(touch_pin));
   setProximity(pulse());
+  setPressure(pressure());
   sendStatus();
+  delay(10);
 }
 
 int pulse() {
@@ -65,6 +72,17 @@ int pulse() {
   return iHpulse - iLpulse;
 }
 
+int pressure() {
+  return analogRead(pressure_pin);
+}
+
+int last_pressure = 0;
+void setPressure(int pressure) {
+  if (pressure != last_pressure) {
+    last_pressure = pressure;
+  }
+}
+
 int last_touched = 0;
 void setTouch(int touch) {
   if (touch != last_touched) {
@@ -79,10 +97,24 @@ void setProximity(int proximity) {
   }
 }
 
+const boolean debug = false;
+
 int last_status = 0;
 void sendStatus() {
-  int proximity_constrained = 127 - constrain(map(last_proximity, 142, 354, 0, 127), 0, 127);
-  Serial.write(0);
-  Serial.write(last_touched);
-  Serial.write(proximity_constrained);
+  int proximity_constrained = 127 - constrain(map(last_proximity, 142, 354, 0, 126), 1, 127);
+  write(0);
+  write(last_touched);
+  write(255 - constrain(map(last_pressure, 128, 1023, 0, 254), 1, 255));
+  write(proximity_constrained);
+  if (debug) {
+    Serial.println();
+    delay(500);
+  }
+}
+
+void write(byte b) {
+  if (debug)
+    Serial.println(b);
+  else
+    Serial.write(b);
 }

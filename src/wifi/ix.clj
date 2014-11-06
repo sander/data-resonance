@@ -17,15 +17,28 @@
                   :last-key-pressed nil
 
                   :touch (listener 0)
-                  :dist (listener 1)}))
+                  :pressure (listener 1)
+                  :dist (listener 2)}))
 
 (def last-touch (atom 0))
+(def last-pressure (atom 0))
 (def last-dist (atom 0))
 
 (def last-touch-stable (atom 0))
+(def last-pressure-stable (atom 0))
 (def last-dist-stable (atom 0))
 
+(defn fake-stabilize
+  [at at-stable ch]
+  (async/go
+    (while true
+      (let [val (async/<! ch)]
+        (reset! at val)
+        (reset! at-stable val)))))
+
 (stabilize last-touch last-touch-stable (@state :touch))
+;(stabilize last-pressure last-pressure-stable (@state :pressure))
+(fake-stabilize last-pressure last-pressure-stable (@state :pressure))
 (stabilize last-dist last-dist-stable (@state :dist))
 
 (defn auto-mode? [] (= (@state :mode) ::auto))
@@ -64,25 +77,26 @@
   [_ _ old new]
   (if (ready-to-accept-change?)
     (let [dir (direction old new)]
-      (if (= dir :down)
-        (case (@state :submode)
-          ::inactive
-          (set-submode! ::active)
+      (comment
+        (if (= dir :down)
+          (case (@state :submode)
+            ::inactive
+            (set-submode! ::active)
 
-          ::active
-          (set-submode! ::detailed)
+            ::active
+            (set-submode! ::detailed)
 
-          ::detailed
-          nil)
-        (case (@state :submode)
-          ::inactive
-          nil
+            ::detailed
+            nil)
+          (case (@state :submode)
+            ::inactive
+            nil
 
-          ::active
-          (println "would set submode ::inactive")
+            ::active
+            (println "would set submode ::inactive")
 
-          ::detailed
-          (println "would set submode ::active"))))))
+            ::detailed
+            (println "would set submode ::active")))))))
 (add-watch last-dist-stable :update-submode on-dist-change)
 
 (defn refresh-watch []
@@ -132,6 +146,8 @@
   (q/text-align :left :top)
   (q/text (str (@state :mode) " " (@state :submode)) 50 50)
   (let [i (atom -1)]
+    (draw-bar (swap! i inc) "pressure" @last-pressure 0 255)
+    (draw-bar (swap! i inc) "pressure stable" @last-pressure-stable 0 255)
     (draw-bar (swap! i inc) "touch" @last-touch 0 255)
     (draw-bar (swap! i inc) "touch stable" @last-touch-stable 0 255)
     (draw-bar (swap! i inc) "distance" @last-dist 0 127)

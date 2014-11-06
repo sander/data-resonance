@@ -25,7 +25,7 @@
 (defn stabilize
   [at at-stable ch]
   (let [last-time (atom 0)]
-    (go (while
+    (go (while true
           (let [timeout (timeout stabilize-timeout)
                 [val port] (alts! [ch timeout])]
             (condp = port
