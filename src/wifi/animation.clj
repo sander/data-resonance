@@ -1,6 +1,7 @@
 (ns wifi.animation
   (:require [clojure.core.async :as async
-             :refer [chan go >! <! timeout go-loop alts! close!]]))
+             :refer [chan go >! <! timeout go-loop alts! close!]]
+            [wifi.haptic :as hap]))
 
 (def fps 60)
 
@@ -65,3 +66,22 @@
   "Stops an animator."
   [anim]
   (go (>! (:stop anim) true)))
+
+(defn lerp
+  [v w t]
+  (+ (* (- 1 t) v)
+     (* t w)))
+(defn rlerp
+  [& args]
+  (Math/round (apply lerp args)))
+
+(comment
+  (def motor (animator))
+  (require '[wifi.haptic :as hap])
+  (set-state motor #(println %) 100)
+  (defn move [p1 p2]
+    (let [[s1 s2] @hap/last-motor-status]
+      (set-state motor #(hap/set-motors
+                         (rlerp s1 p1 %)
+                         (rlerp s2 p2 %)) 500)))
+  (move 9 5))
