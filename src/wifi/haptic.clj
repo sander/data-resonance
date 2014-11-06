@@ -149,18 +149,23 @@
 (defn indexes-of [e coll] (keep-indexed #(if (= e %2) %1) coll))
 (defn next-in [e cycle] (nth cycle (inc (first (indexes-of e cycle)))))
 
+(defn create-sensor-channel [] (chan (sliding-buffer 1)))
 (defn listen5
   []
-  (let [sensors (cycle [:touch :pressure :dist])
-        state (atom {:current (first sensors)})]
+  (let [sensors [:touch :pressure :dist]
+        order (cycle sensors)
+        state (atom {:current (first sensors)})
+        output (zipmap sensors (for [_ sensors] (create-sensor-channel)))]
     (serial/on-byte @port (fn [b]
                             (case b
                               0 (swap! state assoc :current (first sensors))
-                              (swap! state #(let [c (:current %)]
-                                             (assoc %
-                                                    c b
-                                                    :current (next-in c sensors)))))))
-    state))
+                              (do
+                                (put! ((:current @state) output) b)
+                                (swap! state #(let [c (:current %)]
+                                               (assoc %
+                                                      c b
+                                                      :current (next-in c order))))))))
+    output))
 
 (defn unlisten
   "Stops listening to touch events."
