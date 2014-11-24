@@ -1,6 +1,7 @@
 (ns wifi.sniffer
   (:require [clojure.core.async :as async]
-            [clojure.core.async.lab :as async.lab]))
+            [clojure.core.async.lab :as async.lab]
+            [wifi.process :as process]))
 
 (def fields {:frame.number read-string
              ;:ip.addr
@@ -46,20 +47,8 @@
   (cond (= (:wlan.fc.type p) :data) :data
         :else :other))
 
-(defn sniff []
-  (let [process (.start (ProcessBuilder. cmd))
-        stdout (.getInputStream process)
-        reader (clojure.java.io/reader stdout)
-        lines (line-seq reader)
-        processed (process-output lines)
-        ch (async.lab/spool processed)
-        publication (async/pub ch topic-fn)]
-    ;; “Items received when there are no matching subs get dropped.”
-    {:pub publication
-     :stop (fn []
-             (.destroy process)
-             (async/close! ch))}))
-(defn stop [sn] ((:stop sn)))
+(defn sniff [] (process/start cmd process-output topic-fn))
+(def stop process/stop)
 
 (defn counter [ch]
   "also empties the chan"
