@@ -6,7 +6,8 @@
 (defn open
   "Opens the connection to Arduino."
   ([path] (serial/open path))
-  ([] (open "/dev/tty.usbmodem1421")))
+  ([] (open "/dev/tty.usbmodem1411" #_ "/dev/tty.usbmodem1421")))
+; 1411 is right, 1421 left
 
 (defonce port (atom (open)))
 
@@ -18,7 +19,7 @@
 (defn reopen
   "Creates a new connection to Arduino."
   []
-  (swap! port open))
+  (reset! port (open)))
 
 (def last-motor-status (atom [0 0]))
 
@@ -164,7 +165,25 @@
                                 (swap! state #(let [c (:current %)]
                                                (assoc %
                                                       c b
-                                                      :current (next-in c order))))))))
+                                                      :current (next-in c order)))))))
+                    false)
+    output))
+
+(defn listen6 []
+  (let [vals [:servo1 :servo2 :pressure]
+        order (cycle vals)
+        state (atom {:current (first vals)})
+        output (zipmap vals (for [_ vals] (create-sensor-channel)))]
+    (serial/on-byte @port (fn [b]
+                            ;(println "new" b (:current @state))
+                            (if (= b 0)
+                              (swap! state assoc :current (first vals))
+                              (let [curr (:current @state)]
+                                (if-not (= (@state curr) b)
+                                  (do
+                                    (put! (output curr) b)
+                                    (swap! state assoc curr b :current (next-in curr order)))))))
+                    true)
     output))
 
 (defn unlisten
@@ -212,6 +231,29 @@
     (reset! vibration-enabled true)))
 
 (defn set-vibrating!
+  [v]
+  (when (not= @vibrating v)
+    (reset! vibrating v)
+    (if v (vibrate))))
+
+(defn set-motors2
+  [m1 m2]
+  (serial/write @port (byte-array [255 m1 m2])))
+(defn vibrate2
+  []
+  (when (not @vibration-active)
+    (reset! vibration-active true)
+    (go-loop
+      []
+      (when (should-vibrate?)
+        (let [add ((if @vibration-up - +) @vibration-intensity)]
+          (apply set-motors2 (take 2 (repeat add))))
+        (swap! vibration-up not)
+        (<! (timeout vibration-ms)))
+      (if @vibrating
+        (recur)
+        (reset! vibration-active false)))))
+(defn set-vibrating2!
   [v]
   (when (not= @vibrating v)
     (reset! vibrating v)

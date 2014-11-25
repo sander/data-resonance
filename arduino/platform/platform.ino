@@ -109,7 +109,10 @@ void sendStatus() {
   if (debug) {
     Serial.println();
     delay(500);
+  } else {
+    delay(100);
   }
+  //delay(500);
 }
 
 void write(byte b) {

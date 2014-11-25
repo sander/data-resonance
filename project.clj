@@ -9,7 +9,8 @@
                            [quil "2.2.2"]
                            [overtone "0.9.1"]
                            [clj-firmata "2.0.0-SNAPSHOT"]
-                           [serial-port "1.1.2"]]
+                           [serial-port "1.1.2"]
+                           [clj-serial "2.0.2"]]
             :main ^:skip-aot wifi.core
             :target-path "target/%s"
             :profiles {:uberjar {:aot :all}})
