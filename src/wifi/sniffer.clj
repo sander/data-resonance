@@ -1,7 +1,8 @@
 (ns wifi.sniffer
   (:require [clojure.core.async :as async]
             [clojure.core.async.lab :as async.lab]
-            [wifi.process :as process]))
+            [wifi.process :as process]
+            [clojure.string :refer [split]]))
 
 (def fields {:frame.number read-string
              ;:ip.addr
@@ -27,25 +28,13 @@
              :data.data identity})
 ; right click in wireshark, apply as filter > selected
 
-(def cmd (vec
-           (concat ["tshark" "-Tfields" "-Il"]
-                   (flatten (map (fn [f]
-                                   ["-e" (name f)])
-                                 (keys fields))))))
+(def cmd (vec (concat ["tshark" "-Tfields" "-Il"] (flatten (map #(vec ["-e" (name %)]) (keys fields))))))
 
-(defn combine-with-fields [v]
-  (zipmap (keys fields) (clojure.string/split v #"\t")))
-(defn process-fields [v]
-  (reduce-kv (fn [m k v] (assoc m k ((k fields) v))) {} v))
-(defn process-output [lines]
-  (sequence (comp
-              (map combine-with-fields)
-              (map process-fields))
-            lines))
+(defn combine-with-fields [v] (zipmap (keys fields) (split v #"\t")))
+(defn process-fields [v] (reduce-kv (fn [m k v] (assoc m k ((k fields) v))) {} v))
+(defn process-output [lines] (sequence (comp (map combine-with-fields) (map process-fields)) lines))
 (def topics [:data :other])
-(defn topic-fn [p]
-  (cond (= (:wlan.fc.type p) :data) :data
-        :else :other))
+(defn topic-fn [p] (cond (= (:wlan.fc.type p) :data) :data :else :other))
 
 (defn sniff [] (process/start cmd process-output topic-fn))
 (def stop process/stop)
@@ -70,6 +59,33 @@
     (doseq [t topics]
       (async/sub (:pub sn) t res))
     res))
+
+(defn data [sniffer]
+  (let [s (async/chan)]
+    (async/sub (:pub sniffer) :data s)
+    s))
+
+(defn top-addresses [sniffer]
+  (let [addresses (atom (priority-map))
+        packets (data sniffer)
+        update-address
+        (fn [addr]
+          (swap! addresses update-in [addr]
+                 (if (contains? @addresses addr) inc (constantly 1))))]
+    (async/go
+      (while true
+        (let [p (async/<! packets)]
+          (update-address (:wlan.sa p))
+          (update-address (:wlan.da p)))))
+    addresses))
+(defn addresses>str [addr]
+  (apply str (flatten (for [[addr count] (take 5 (rseq addr))] [" - " addr ": " count "\n"]))))
+
+(defn size-accumulator [sniffer]
+  (let [s (async/chan 1 (map :data.len))
+        r (async/reduce + 0 s)]
+    (async/sub (:pub sniffer) :data s)
+    (sn/last-item r)))
 
 (comment
   (def sn (sniff))
