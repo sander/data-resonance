@@ -1,8 +1,9 @@
 (ns wifi.sniffer
-  (:require [clojure.core.async :as async]
-            [clojure.core.async.lab :as async.lab]
+  (:require [clojure.core.async :refer [chan go go-loop <! >! sub] :as async]
+            [clojure.core.async.lab :refer [spool] :as async.lab]
             [wifi.process :as process]
-            [clojure.string :refer [split]]))
+            [clojure.string :refer [split]]
+            [clojure.data.priority-map :refer [priority-map]]))
 
 (def fields {:frame.number read-string
              ;:ip.addr
@@ -42,76 +43,71 @@
 (defn counter [ch]
   "also empties the chan"
   (let [result (atom 0)]
-    (async/go-loop []
-                   (when (async/<! ch)
-                     (swap! result inc)
-                     (recur)))
+    (go-loop []
+      (when (<! ch)
+        (swap! result inc)
+        (recur)))
     result))
+;(pipe (chan 2 (map (constantly 1))))
 
 (defn last-item [ch]
   "also empties the chan"
   (let [res (atom nil)]
-    (async/go (while (reset! res (async/<! ch))))
+    (go (while (reset! res (<! ch))))
     res))
 
 (defn all [sn]
-  (let [res (async/chan)]
-    (doseq [t topics]
-      (async/sub (:pub sn) t res))
+  (let [res (chan)]
+    (doseq [t topics] (sub (:pub sn) t res))
     res))
 
-(defn data [sniffer]
-  (let [s (async/chan)]
-    (async/sub (:pub sniffer) :data s)
-    s))
+(defn data
+  ([sniffer] (data sniffer (chan)))
+  ([sniffer s] (sub (:pub sniffer) :data s) s))
 
+(defn increase-priority-item [item map]
+  (swap! map update-in [item] (if (contains? @map item) inc (constantly 1))))
 (defn top-addresses [sniffer]
   (let [addresses (atom (priority-map))
-        packets (data sniffer)
-        update-address
-        (fn [addr]
-          (swap! addresses update-in [addr]
-                 (if (contains? @addresses addr) inc (constantly 1))))]
-    (async/go
-      (while true
-        (let [p (async/<! packets)]
-          (update-address (:wlan.sa p))
-          (update-address (:wlan.da p)))))
+        packets (data sniffer)]
+    (go-loop []
+      (when-let [p (async/<! packets)]
+        (increase-priority-item (:wlan.sa p) addresses)
+        (increase-priority-item (:wlan.da p) addresses)
+        (recur)))
     addresses))
 (defn addresses>str [addr]
   (apply str (flatten (for [[addr count] (take 5 (rseq addr))] [" - " addr ": " count "\n"]))))
 
-(defn size-accumulator [sniffer]
-  (let [s (async/chan 1 (map :data.len))
-        r (async/reduce + 0 s)]
-    (async/sub (:pub sniffer) :data s)
-    (sn/last-item r)))
+(defn size-accumulator [ch]
+  (let [out (atom 0)]
+    (go-loop []
+      (when-let [v (<! ch)]
+        (swap! out + (if-let [len (:data.len v)] len 0))
+        (recur)))
+    out))
+
+(defn accumulator [ch]
+  (let [out (atom 0)]
+    (go-loop []
+      (when-let [v (<! ch)]
+        (swap! out + (if-let [len (:data.len v)] len 0))
+        (recur)))
+    out))
+
+(defn accumulate [f init ch]
+  (let [out (chan)]
+    (go-loop [result init]
+      (>! out result)
+      (when-let [v (<! ch)]
+        (recur (f result v))))
+    out))
+(defn last-value [ch]
+  (let [res (atom nil)]
+    (go (while (reset! res (<! ch))))
+    res))
 
 (comment
-  (def sn (sniff))
-  (def su (async/chan))
-  (async/sub (:pub sn) :data su)
-  (def cnt (counter su))
-
-  ;; stopping
-  (async/unsub (:pub sn) :data su)
-  (stop sn)
-
-  ;; old stuff
-  (def addresses (atom (priority-map)))
-  (def ch3 (async-lab/spool only-data))
-  (defn update-address [addr]
-    (if-not (contains? @addresses addr)
-      (swap! addresses assoc addr 0))
-    (swap! addresses update-in [addr] inc))
-  (async/go-loop []
-                 (let [p (async/<! ch3)]
-                   (update-address (:wlan.sa p))
-                   (update-address (:wlan.da p))
-                   (recur)))
-  (println (take 5 (rseq @addresses)))
-
-
   ;; own sounds
   (def skip 50)
   (def own-count (atom 0))

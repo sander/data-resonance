@@ -59,6 +59,7 @@
   (q/fill 0)
   (q/text-align :left :top)
   (q/text (str (@state :mode) " " (@state :submode)) 50 50)
+  (haptic/set-vibrating! (q/key-pressed?))
   (let [i (atom -1)]
     (draw-bar (swap! i inc) "pressure" (@haptic/values :pressure) 0 255)
     (draw-bar (swap! i inc) "motor 2" (@haptic/values :servo2) 0 180)

@@ -9,7 +9,7 @@
                           (async/put! out (.read in))) false)
     (async/go
       (while (@state :running)
-        (serial/write port (byte-array (async/<! in)))))
+          (serial/write port (byte-array (async/<! in)))))
     (async/go
       (async/<! stop)
       (swap! state assoc :running false)
@@ -47,6 +47,26 @@
 (connect in out stop)
 (def listen-stop (async/chan))
 (def values (listen out listen-stop))
+
+(defn adjust-motors [m1 m2]
+  (async/put! in [255 m1 m2]))
+
+(def vibrating (atom false))
+(def vibration-intensity 2)
+(def vibration-up (atom false))
+(def fps 15)
+(defn vibrate []
+  (async/go-loop []
+    (when @vibrating
+      (let [add (if @vibration-up vibration-intensity 0)]
+        (apply adjust-motors (take 2 (repeat add))))
+      (swap! vibration-up not)
+      (async/<! (async/timeout (/ 1000 fps)))
+      (recur))))
+(defn set-vibrating! [v]
+  (when (not= @vibrating v)
+    (reset! vibrating v)
+    (if v (vibrate) (adjust-motors 0 0))))
 
 (defn dbg-stop []
   (async/put! stop true)

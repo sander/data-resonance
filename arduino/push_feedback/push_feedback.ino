@@ -69,8 +69,8 @@ void loop_motors() {
 }
 
 boolean update_state() {
-  byte s0 = servo[0].setting();
-  byte s1 = servo[1].setting();
+  byte s0 = servo[0].adjustedSetting();
+  byte s1 = servo[1].adjustedSetting();
   byte s2 = last_pressure;
   if (state[0] != s0 || state[1] != s1 || state[2] != s2) {
     state[0] = s0;
