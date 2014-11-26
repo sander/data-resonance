@@ -86,7 +86,7 @@ void send_state() {
   write(0);
   for (int i = 0; i < 3; i++)
     write(state[i]);
-  //Serial.flush();
+  Serial.flush();
 }
 
 void write(byte b) { DEBUG ? Serial.println(b) : Serial.write(b); }
