@@ -10,7 +10,7 @@
 (def vib-threshold 10)
 
 (def interval 1000)
-(def delay-factor (atom 300))
+(def delay-factor (atom 200))
 (def vib-duration 100)
 (defn vibrate-signal-set-loop [ival-count state]
   (<!! (timeout interval))
@@ -44,7 +44,8 @@
      :data-counter (-> s sn/data sn/counter)
      :addresses    (sn/top-addresses s)
      :size (sn/last-value (sn/accumulate + 0 (sn/data s (chan 2 (map #(if-let [len (:data.len %)] len 0))))))
-     :vibrate (-> s sn/data sn/counter vibrate-signal)}))
+     :vibrate (-> s sn/data sn/counter vibrate-signal)
+     :lower (atom false)}))
 
 (defn update [{:keys [] :as state}]
   state)
