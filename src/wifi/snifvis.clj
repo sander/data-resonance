@@ -7,10 +7,10 @@
 
 (def running (atom false))
 
-(def vib-threshold 10)
+(def vib-threshold 45)
 
 (def interval 1000)
-(def delay-factor (atom 200))
+(def delay-factor (atom 100))
 (def vib-duration 100)
 (defn vibrate-signal-set-loop [ival-count state]
   (<!! (timeout interval))

@@ -1,10 +1,10 @@
 #include <FeedbackServo.h>
 #include <Servo.h>
 
-#define M0_MIN 9
-#define M0_MAX 55
-#define M1_MIN 5
-#define M1_MAX 61
+#define M0_MIN 32
+#define M0_MAX 86
+#define M1_MIN 26
+#define M1_MAX 100
 #define DEBUG false
 
 const int n = 2;
@@ -42,7 +42,7 @@ void read_input() {
   while (Serial.available() > 0) {
     int val = Serial.read();
     if (val == 255) { read_index = 0; }
-    else { servo[read_index].adjust(val); }
+    else { servo[read_index++].adjust(val); }
   }
 }
 
@@ -93,10 +93,10 @@ void write(byte b) { DEBUG ? Serial.println(b) : Serial.write(b); }
 
 int pressure() { return 255 - constrain(map(analogRead(pressure_pin), 128, 1023, 0, 254), 1, 255); }
 
-int required_sink_pressure() { return (servo[0].setting() > 30) ? 210 : 150; }
+int required_sink_pressure() { return (servo[0].setting() > servo_threshold()) ? 100 : 50; }
 int required_static_pressure() { return 50; }
 
-int sink_timeout() { return (servo[0].setting() > 30) ? 10 : 5; }
+int sink_timeout() { return (servo[0].setting() > servo_threshold()) ? 5 : 10; }
 int raise_timeout() { return 2; }
 
-
+int servo_threshold() { return 50; }
