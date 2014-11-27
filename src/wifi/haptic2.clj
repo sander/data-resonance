@@ -52,7 +52,7 @@
   (async/put! in [255 m1 m2]))
 
 (def vibrating (atom false))
-(def vibration-intensity 2)
+(def vibration-intensity 4)
 (def vibration-up (atom false))
 (def fps 15)
 (defn vibrate []
@@ -67,6 +67,14 @@
   (when (not= @vibrating v)
     (reset! vibrating v)
     (if v (vibrate) (adjust-motors 0 0))))
+(defn vibrate-once! []
+  (async/go
+    (when (not @vibrating)
+      (reset! vibrating true)
+      (apply adjust-motors (take 2 (repeat vibration-intensity)))
+      (async/<! (async/timeout (/ 1000 fps)))
+      (adjust-motors 0 0)
+      (reset! vibrating false))))
 
 (defn dbg-stop []
   (async/put! stop true)

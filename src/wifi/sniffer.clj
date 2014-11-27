@@ -1,5 +1,5 @@
 (ns wifi.sniffer
-  (:require [clojure.core.async :refer [chan go go-loop <! >! sub] :as async]
+  (:require [clojure.core.async :refer [chan go go-loop alts! <! >! sub] :as async]
             [clojure.core.async.lab :refer [spool] :as async.lab]
             [wifi.process :as process]
             [clojure.string :refer [split]]
@@ -106,6 +106,26 @@
   (let [res (atom nil)]
     (go (while (reset! res (<! ch))))
     res))
+
+; TO DETERMINE SPEEDS ETC NICELY
+; request Value by >! Request and then <! Channel
+; Value is collected over Interval from Source
+; multiple Values are collected in Channel
+; each Value request spawns a new Value being collected
+(comment
+  (def collector [src]
+    (let [req (chan)
+          res (chan)]
+      (go-loop []
+        (when-let [[val port] (alts! [src req])]
+          ;; not nil??!?
+          (recur)))
+      [req res]))
+
+  (def request [req res]
+    (go
+      (>! req true)
+      (<! res))))
 
 (comment
   ;; own sounds

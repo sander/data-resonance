@@ -2,13 +2,15 @@
   (:require [quil.core :as q]
             [quil.middleware :as m]
             [wifi.sniffer :as sn]
-            ;[wifi.haptic2 :as haptic]
+            [wifi.haptic2 :as haptic]
             [clojure.core.async :refer [<! <!! timeout chan pipe go go-loop] :as async]))
 
 (def running (atom false))
 
+(def vib-threshold 10)
+
 (def interval 1000)
-(def delay-factor (atom 1))
+(def delay-factor (atom 300))
 (def vib-duration 100)
 (defn vibrate-signal-set-loop [ival-count state]
   (<!! (timeout interval))
@@ -47,8 +49,15 @@
 (defn update [{:keys [] :as state}]
   state)
 
-(defn draw [{:keys [counter data-counter addresses size vibrate] :as state}]
-  ;(haptic/set-vibrating! (and @vibrate (> (@haptic/values :servo1) 10)))
+(defn vibrate? [vibrate lower]
+  (and (not @lower) @vibrate (> (@haptic/values :servo1) vib-threshold)))
+
+(defn draw [{:keys [counter data-counter addresses size vibrate lower] :as state}]
+  (haptic/set-vibrating! (vibrate? vibrate lower))
+  (reset! lower (q/key-pressed?))
+  (if (q/key-pressed?)
+    (haptic/adjust-motors 30 30)
+    (haptic/adjust-motors 0 0))
   (q/background 255)
   (q/fill 0)
   (q/text (str "Total packets: " @counter) 12 24)
