@@ -76,14 +76,17 @@
       (adjust-motors 0 0)
       (reset! vibrating false))))
 
-(defn bounce! [depth duration]
+(defn bounce! [depth offset duration wait]
   (go
     (when (not @vibrating)
-      (reset! vibrating true)
-      (adjust-motors depth depth)
-      (<! (timeout duration))
-      (adjust-motors 0 0)
-      (reset! vibrating false))))
+      (let [up offset
+            down (+ depth offset)]
+        (reset! vibrating true)
+        (adjust-motors down down)
+        (<! (timeout duration))
+        (adjust-motors up up)
+        (<! (timeout wait))
+        (reset! vibrating false)))))
 
 (go
   (adjust-motors 16 16)
