@@ -5,6 +5,12 @@
 #define M0_MAX 86
 #define M1_MIN 26
 #define M1_MAX 100
+
+#define M0_MIN 25
+#define M1_MIN 15
+#define M0_MAX 70
+#define M1_MAX 70
+
 #define DEBUG false
 
 const int n = 2;
@@ -42,7 +48,7 @@ void read_input() {
   while (Serial.available() > 0) {
     int val = Serial.read();
     if (val == 255) { read_index = 0; }
-    else { servo[read_index++].adjust(val); }
+    else { servo[read_index++].adjust(val - 127); }
   }
 }
 
@@ -93,7 +99,7 @@ void write(byte b) { DEBUG ? Serial.println(b) : Serial.write(b); }
 
 int pressure() { return 255 - constrain(map(analogRead(pressure_pin), 128, 1023, 0, 254), 1, 255); }
 
-int required_sink_pressure() { return (servo[0].setting() > servo_threshold()) ? 100 : 50; }
+int required_sink_pressure() { return (servo[0].setting() > servo_threshold()) ? 140 : 70; }
 int required_static_pressure() { return 50; }
 
 int sink_timeout() { return (servo[0].setting() > servo_threshold()) ? 5 : 10; }

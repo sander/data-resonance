@@ -49,7 +49,7 @@
 (def values (listen out listen-stop))
 
 (defn adjust-motors [m1 m2]
-  (async/put! in [255 m1 m2]))
+  (async/put! in [255 (+ 127 m1) (+ 127 m2)]))
 
 (def vibrating (atom false))
 (def vibration-intensity 8)
@@ -88,14 +88,15 @@
         (<! (timeout wait))
         (reset! vibrating false)))))
 
-(go
-  (adjust-motors 16 16)
-  (<! (timeout 50))
-  (adjust-motors 10 10)
-  (<! (timeout 50))
-  (adjust-motors 4 4)
-  (<! (timeout 50))
-  (adjust-motors 0 0))
+(comment
+  (go
+    (adjust-motors 16 16)
+    (<! (timeout 50))
+    (adjust-motors 10 10)
+    (<! (timeout 50))
+    (adjust-motors 4 4)
+    (<! (timeout 50))
+    (adjust-motors 0 0)))
 
 (defn dbg-stop []
   (async/put! stop true)

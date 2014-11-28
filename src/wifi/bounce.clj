@@ -16,16 +16,17 @@
 (def max-bounces 100)
 
 (defn update [{:keys [] :as state}]
-  (assoc state
-         :bounces-per-second (q/constrain-int (q/map-range (q/mouse-x) padding (- (q/width) padding) 0 max-bounces) 0 max-bounces)
-         :lower (if (q/key-pressed?) 20 0)))
+  (let [min 0 max max-bounces]
+    (assoc state
+           :bounces-per-second (q/constrain-int (q/map-range (q/mouse-x) padding (- (q/width) padding) min max) min max)
+           :lower (if (q/key-pressed?) 20 0))))
 
 (defn draw [{:keys [bounces-per-second lower] :as state}]
   (comment (if lower
              (haptic/adjust-motors 30 30)
              (haptic/adjust-motors 0 0)))
   (if (> bounces-per-second 0)
-    (haptic/bounce! 5 lower 50 (/ 1000 bounces-per-second)))
+    (haptic/bounce! -40 lower 50 (/ 1000 bounces-per-second)))
   (q/background 255)
   (q/fill 0)
   (q/text (str "Bounces per second: " bounces-per-second) 12 24)
@@ -40,5 +41,6 @@
              :update update
              :draw draw
              :on-close on-close
+             :features [:keep-on-top]
              :size [300 200]
              :middleware [m/fun-mode])
