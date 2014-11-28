@@ -1,6 +1,6 @@
 (ns wifi.haptic2
   (:require [serial.core :as serial]
-            [clojure.core.async :as async]))
+            [clojure.core.async :as async :refer [<! timeout go]]))
 
 (defn connect [in out stop]
   (let [state (atom {:running true})
@@ -52,7 +52,7 @@
   (async/put! in [255 m1 m2]))
 
 (def vibrating (atom false))
-(def vibration-intensity 4)
+(def vibration-intensity 8)
 (def vibration-up (atom false))
 (def fps 15)
 (defn vibrate []
@@ -75,6 +75,24 @@
       (async/<! (async/timeout (/ 1000 fps)))
       (adjust-motors 0 0)
       (reset! vibrating false))))
+
+(defn bounce! [depth duration]
+  (go
+    (when (not @vibrating)
+      (reset! vibrating true)
+      (adjust-motors depth depth)
+      (<! (timeout duration))
+      (adjust-motors 0 0)
+      (reset! vibrating false))))
+
+(go
+  (adjust-motors 16 16)
+  (<! (timeout 50))
+  (adjust-motors 10 10)
+  (<! (timeout 50))
+  (adjust-motors 4 4)
+  (<! (timeout 50))
+  (adjust-motors 0 0))
 
 (defn dbg-stop []
   (async/put! stop true)
