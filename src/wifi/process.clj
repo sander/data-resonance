@@ -13,7 +13,7 @@
                (line-seq)
                (process-fn)
                (async.lab/spool))
-        publication (async/pub ch topic-fn)]
+        publication (async/pub ch topic-fn (fn [_] (async/sliding-buffer 1)))]
     (PublishedProcess. publication (fn []
                             (.destroy process)
                             (async/close! ch)))))

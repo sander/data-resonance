@@ -39,6 +39,7 @@
 
 (defn sniff [] (process/start cmd process-output topic-fn))
 (def stop process/stop)
+;; TODO memory seems to keep increasing while sniffing; may be nice to stop and restart from time to time
 
 (defn counter [ch]
   "also empties the chan"
@@ -56,10 +57,9 @@
     (go (while (reset! res (<! ch))))
     res))
 
-(defn all [sn]
-  (let [res (chan)]
-    (doseq [t topics] (sub (:pub sn) t res))
-    res))
+(defn all
+  ([sn ch] (doseq [t topics] (sub (:pub sn) t ch)) ch)
+  ([sn] (all sn (async/chan (async/sliding-buffer 1)))))
 
 (defn data
   ([sniffer] (data sniffer (chan)))
