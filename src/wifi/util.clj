@@ -6,6 +6,8 @@
   []
   (System/currentTimeMillis))
 
+(defn transduce-chan [xf ch] (async/pipe ch (async/chan 2 xf)))
+
 (defn reduce-over-interval [f init]
   (letfn [(g [in ival out]
              (go-loop []
@@ -21,6 +23,7 @@
 
 (def sum-values (reduce-over-interval + 0))
 
+(defn mapchan [f ch] (->> f map (chan 2) (pipe ch)))
 (defn map-to-ones [ch] (->> 1 constantly map (chan 2) (pipe ch)))
 
 (defn count-values [in & args] (apply (reduce-over-interval + 0) (map-to-ones in) args))
@@ -31,6 +34,13 @@
       (while (reset! res (<! ch)))
       (reset! res nil))
     res))
+
+(defn interpolate [value ival]
+  (fn [now last-time last-value]
+    (if (and last-time last-value)
+      (let [t (/ (- now last-time) ival)]
+        (+ (* (- 1 t) last-value) (* t @value)))
+      @value)))
 
 #_(defn spreader [in ival out]
   ;; keep track of count-values, curr and prev values (use sliding buffer?)
