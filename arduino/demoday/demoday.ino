@@ -32,8 +32,8 @@
 int pressureL;
 int pressureR;
 
-int targetL = 700;
-int targetR = 700;
+int targetL = 0;
+int targetR = 0;
 
 FeedbackServo servoL;
 FeedbackServo servoR;
@@ -109,6 +109,8 @@ void update() {
   servoR.setMicro(targetR);
   */
   adjustMotorsToPressure();
+  servoL.adjust(targetL);
+  servoR.adjust(targetR);
 }
 
 void adjustMotorsToPressure() {
