@@ -1,7 +1,7 @@
 #include <FeedbackServo.h>
 #include <Servo.h>
 
-//#define FINAL
+#define FINAL
 
 #ifdef FINAL
 #define PRESSURE_L A1
@@ -10,10 +10,11 @@
 #define POT_R A2
 #define SERVO_L 5
 #define SERVO_R 6
-#define MIN_L 700
-#define MAX_L 2300
-#define MIN_R 700
-#define MAX_R 2300
+#define MIN_L 960
+#define MAX_L 1248
+#define MIN_R 960
+#define MAX_R 1248
+#define MAX_DELAY 500
 #else
 #define PRESSURE_L A1
 #define PRESSURE_R A1
@@ -25,6 +26,7 @@
 #define MAX_L 2300
 #define MIN_R 700
 #define MAX_R 2300
+#define MAX_DELAY 150
 #endif
 
 // #define pins with ifdefs for old/new prototype
@@ -45,9 +47,11 @@ void setup() {
   Serial.begin(115200);
   
   servoL.begin(SERVO_L, POT_L);
-  servoL.setMaxDelay(150);
+  servoL.setMaxDelay(MAX_DELAY);
+  servoL.mconstrain(MIN_L, MAX_L);
   servoR.begin(SERVO_R, POT_R);
-  servoR.setMaxDelay(150);
+  servoR.setMaxDelay(MAX_DELAY);
+  servoR.mconstrain(MIN_R, MAX_R);
   servoR.setReversed(true);
   
   establish();
