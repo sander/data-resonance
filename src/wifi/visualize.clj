@@ -11,6 +11,8 @@
 
 ;; TODO why are the charts out of sync - maybe need more central timing?
 
+;; TODO easily adjust data thresholds
+
 (defn setup []
   (q/background 0)
   (q/no-stroke)
