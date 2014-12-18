@@ -19,7 +19,8 @@
   (q/fill 255)
   (q/text-align :left :top)
   (let [sn (sniff)
-        gr (grid (q/width) (q/height) [:flex] [24 :flex 24 :flex])]
+        gr (grid (q/width) (q/height) [:flex] [24 :flex 24 :flex])
+        start-time (millis)]
     (let [[x y] (in-grid gr 0 0)]
       (q/text "Packets per second" (+ x 4) (+ y 4)))
     (let [[x y] (in-grid gr 0 2)]
@@ -28,11 +29,16 @@
      :last-count-all (last-item (count-values (all sn) ival))
      :last-count-data (last-item (count-values (data sn) ival))
      :last-bytes (last-item (bytes-per-interval (data sn) ival))
-     :charts {:frequency-all (create-chart :stroke 120 :grid [gr 0 1])
-              :frequency-data (create-chart :stroke 255 :grid [gr 0 1])
+     :charts {:frequency-all (create-chart :stroke 120
+                                           :grid [gr 0 1]
+                                           :start-time start-time)
+              :frequency-data (create-chart :stroke 255
+                                            :grid [gr 0 1]
+                                            :start-time start-time)
               :bytes-per-second (create-chart :stroke 255
                                               :range [0 100000]
-                                              :grid [gr 0 3])}}))
+                                              :grid [gr 0 3]
+                                              :start-time start-time)}}))
 
 (defn update [state]
   (-> state
