@@ -21,6 +21,7 @@
   (q/no-stroke)
   (q/fill 255)
   (q/text-align :left :top)
+  (arduino/start)
   (let [sn (sniff)
         gr (grid (q/width) (q/height) [:flex] [24 :flex
                                                24 :flex
@@ -83,7 +84,8 @@
     (q/text (pr-str @last-arduino-data) 0 10)))
 
 (defn on-close [state]
-  (stop (:sniffer state)))
+  (stop (:sniffer state))
+  (arduino/stop))
 
 (q/defsketch visualize
              :title "Wi-Fi"

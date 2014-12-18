@@ -60,8 +60,10 @@
 
 (def in (chan))
 (def values (chan (sliding-buffer 1)))
-(def stop (chan))
-(connect in values stop)
+(def stop-ch (chan))
+
+(defn stop [] (put! stop-ch true))
+(defn start [] (connect in values stop-ch))
 
 (defn set-motors [l r]
   (put! in (str l \, r \newline)))
