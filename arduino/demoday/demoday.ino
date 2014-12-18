@@ -15,6 +15,11 @@
 #define MIN_R 960
 #define MAX_R 1248
 #define MAX_DELAY 500
+
+#define MIN_L 700
+#define MAX_L 2300
+#define MIN_R 700
+#define MAX_R 2300
 #else
 #define PRESSURE_L A1
 #define PRESSURE_R A1
@@ -29,6 +34,8 @@
 #define MAX_DELAY 150
 #endif
 
+#define SEND_IVAL 100
+
 // #define pins with ifdefs for old/new prototype
 
 int pressureL;
@@ -40,11 +47,14 @@ int targetR = 0;
 FeedbackServo servoL;
 FeedbackServo servoR;
 
-int lastSunk;
-int lastRaised;
+unsigned long lastSunk;
+unsigned long lastRaised;
+unsigned long lastSent;
 
 void setup() {
   Serial.begin(115200);
+  
+  lastSunk = lastRaised = lastSent = 0;
   
   servoL.begin(SERVO_L, POT_L);
   servoL.setMaxDelay(MAX_DELAY);
@@ -52,7 +62,7 @@ void setup() {
   servoR.begin(SERVO_R, POT_R);
   servoR.setMaxDelay(MAX_DELAY);
   servoR.mconstrain(MIN_R, MAX_R);
-  servoR.setReversed(true);
+  servoR.setReversed(false);
   
   establish();
 }
@@ -65,10 +75,10 @@ void loop() {
   
   if (Serial.available() > 0) {
     read();
-  } else {
-    send();
+  } else if (millis() - lastSent > SEND_IVAL) {
+    //send();
+    lastSent = millis();
   }
-  //send();
 }
 
 void establish() {
@@ -108,13 +118,15 @@ void update() {
   pressureL = analogRead(PRESSURE_L);
   pressureR = analogRead(PRESSURE_R);
   
+  
+  //servoL.setMicro(targetL);
+  //servoR.setMicro(targetR);
+  
   /*
-  servoL.setMicro(targetL);
-  servoR.setMicro(targetR);
-  */
   adjustMotorsToPressure();
   servoL.adjust(targetL);
   servoR.adjust(targetR);
+  */
 }
 
 void adjustMotorsToPressure() {

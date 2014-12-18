@@ -29,6 +29,8 @@
 #define MAX_DELAY 150
 #endif
 
+#define SEND_IVAL 100
+
 // #define pins with ifdefs for old/new prototype
 
 int pressureL;
@@ -40,11 +42,14 @@ int targetR = 0;
 FeedbackServo servoL;
 FeedbackServo servoR;
 
-int lastSunk;
-int lastRaised;
+unsigned long lastSunk;
+unsigned long lastRaised;
+unsigned long lastSent;
 
 void setup() {
   Serial.begin(115200);
+  
+  lastSunk = lastRaised = lastSent = 0;
   
   servoL.begin(SERVO_L, POT_L);
   servoL.setMaxDelay(MAX_DELAY);
@@ -52,7 +57,7 @@ void setup() {
   servoR.begin(SERVO_R, POT_R);
   servoR.setMaxDelay(MAX_DELAY);
   servoR.mconstrain(MIN_R, MAX_R);
-  servoR.setReversed(false);
+  servoR.setReversed(true);
   
   establish();
 }
@@ -65,10 +70,10 @@ void loop() {
   
   if (Serial.available() > 0) {
     read();
-  } else {
+  } else if (millis() - lastSent > SEND_IVAL) {
     send();
+    lastSent = millis();
   }
-  //send();
 }
 
 void establish() {
