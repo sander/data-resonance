@@ -52,7 +52,7 @@
            :last-time (if (= last-value value) last-time t)
            :last-value value
            :iteration new-iteration)))
-(defn draw-chart [{:keys [previous current clear position size background stroke]}]
+(defn draw-chart [{:keys [previous current clear position size background stroke last-value]}]
   (if clear
     (do
       (q/no-stroke)
@@ -64,4 +64,4 @@
             cy #(q/constrain (% 1) (position 1) (+ (position 1) (size 1) -1))]
         (q/line
           (cx previous) (cy previous)
-          (cx current) (cy current))))))
+          (cx current) (cy current))))))))

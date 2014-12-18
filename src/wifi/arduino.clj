@@ -59,9 +59,9 @@
           stop (serial/close port))))))
 
 (def in (chan))
-(def out (chan (sliding-buffer 1)))
+(def values (chan (sliding-buffer 1)))
 (def stop (chan))
-(connect in out stop)
+(connect in values stop)
 
 (defn set-motors [l r]
   (put! in (str l \, r \newline)))

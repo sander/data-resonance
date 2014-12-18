@@ -35,12 +35,19 @@
       (reset! res nil))
     res))
 
-(defn interpolate [value ival]
-  (fn [now last-time last-value]
-    (if (and last-time last-value)
-      (let [t (/ (- now last-time) ival)]
-        (+ (* (- 1 t) last-value) (* t @value)))
-      @value)))
+(defn interpolate
+  ([value ival]
+    (fn [now last-time last-value]
+      (if (and last-time last-value)
+        (let [t (/ (- now last-time) ival)]
+          (+ (* (- 1 t) last-value) (* t @value)))
+        @value)))
+  ([value cursor ival]
+    (fn [now last-time last-value]
+      (if (and last-time last-value)
+        (let [t (/ (- now last-time) ival)]
+          (+ (* (- 1 t) last-value) (* t (get-in @value cursor))))
+        (get-in @value cursor)))))
 
 #_(defn spreader [in ival out]
   ;; keep track of count-values, curr and prev values (use sliding buffer?)
