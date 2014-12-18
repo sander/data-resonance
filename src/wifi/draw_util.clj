@@ -14,7 +14,13 @@
    (nth cols col)
    (nth rows row)])
 
-(defn create-chart [& {:keys [position size show-ms range stroke grid start-time]}]
+(defn constrain [v min max]
+  (cond (nil? v) min
+        (< v min) min
+        (> v max) max
+        :else v))
+
+(defn create-chart [& {:keys [position size show-ms range stroke grid start-time value-scale]}]
   (let [[px py w h] (if grid (apply in-grid (first grid) (rest grid)))
         grid-pos (if grid [px py])
         grid-size (if grid [w h])]
@@ -26,9 +32,10 @@
      :start-time (or start-time (millis))
      :background 0
      :stroke     (or stroke 255)
-     :iteration 0}))
+     :iteration 0
+     :value-scale (or value-scale identity)}))
 (defn update-chart
-  [{:keys [current last-time position size show-ms range last-value start-time iteration] :as chart} f]
+  [{:keys [current last-time position size show-ms range last-value start-time iteration value-scale] :as chart} f]
   (let [t (millis)
         ms-per-point (/ show-ms (size 0))
         value (f t last-time last-value)
@@ -40,7 +47,7 @@
              (position 0)
              (+ (current 0) (/ (- t last-time) ms-per-point)))
         y1 (q/map-range
-             (or value 0)
+             (constrain (value-scale (or value 0)) (range 0) (range 1))
              (range 0) (range 1)
              (+ (position 1) (size 1)) (position 1))
         new-iteration (int (/ extended-x (size 0)))
