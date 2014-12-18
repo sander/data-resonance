@@ -1,7 +1,7 @@
 #include <FeedbackServo.h>
 #include <Servo.h>
 
-#define FINAL
+//#define FINAL
 
 #ifdef FINAL
 #define PRESSURE_L A1
@@ -22,11 +22,11 @@
 #define POT_R A3
 #define SERVO_L 10
 #define SERVO_R 9
-#define MIN_L 700
-#define MAX_L 2300
-#define MIN_R 700
-#define MAX_R 2300
-#define MAX_DELAY 150
+#define MIN_L 0
+#define MAX_L 180
+#define MIN_R 0
+#define MAX_R 180
+#define MAX_DELAY 300
 #endif
 
 #define SEND_IVAL 100

@@ -68,8 +68,8 @@ void serialEvent(Serial port) {
 void mouseMoved() {
   //targetL = int(map(mouseX, 0, width, -1600, 1600));
   //targetR = int(map(mouseY, 0, height, -1600, 1600));
-  targetL = int(map(mouseX, 0, width, 112, 149));
-  targetR = int(map(mouseY, 0, height, 38, 78));
+  targetL = int(map(mouseX, 0, width, 0, 180)); //112, 149));
+  targetR = int(map(mouseY, 0, height, 0, 180)); //38, 78));
   if (established) {
     send();
   }
@@ -77,6 +77,6 @@ void mouseMoved() {
 
 void send() {
   String msg = "" + targetL + "," + targetR + "\n";
-  println("sending: " + msg);
+  //println("sending: " + msg);
   port.write(msg);
 }
