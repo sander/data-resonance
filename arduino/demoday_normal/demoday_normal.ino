@@ -1,6 +1,8 @@
 #include <FeedbackServo.h>
 #include <Servo.h>
 
+// TODO input values from clojure >> take max value from sink/raise and that
+
 //#define FINAL
 
 #ifdef FINAL
@@ -29,7 +31,7 @@
 #define MAX_DELAY 300
 #endif
 
-#define SEND_IVAL 100
+#define SEND_IVAL 50
 
 // #define pins with ifdefs for old/new prototype
 

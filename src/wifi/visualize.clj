@@ -9,7 +9,10 @@
             [wifi.util :refer [interpolate millis count-values last-item]]))
 
 (def ival 500)
-(def for-real false)
+(def for-real true)
+(def table true)
+(def motor-l (if table [100 50]))
+(def motor-r (if table [100 50]))
 
 (defn draw-header [text gr col row]
   (let [[x y] (in-grid gr col row)]
@@ -43,7 +46,7 @@
                                             :grid [gr 0 1]
                                             :start-time start-time)
               :bytes-per-second (create-chart :stroke 255
-                                              :range [0 4]
+                                              :range [0 14]
                                               ;:value-scale #(Math/log10 %)
                                               :grid [gr 0 3]
                                               :start-time start-time)
@@ -91,8 +94,8 @@
         v w
         ;w (Math/log10 (or orig-v 0))
         ;v (constrain w min max)
-        left (int (q/map-range v min max 80 5))
-        right (int (q/map-range v min max 97 32))]
+        left (int (apply q/map-range v min max motor-l))
+        right (int (apply q/map-range v min max motor-r))]
     ;(println orig-v w left right)
     (if for-real (arduino/set-motors left right)))
 
