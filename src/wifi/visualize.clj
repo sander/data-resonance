@@ -8,22 +8,19 @@
             [wifi.wifi-util :refer [bytes-chan bytes-per-interval]]
             [wifi.util :refer [interpolate millis count-values last-item]]))
 
-(def ival 1000)
-
-;; TODO easily adjust data thresholds
+(def ival 500)
+(def for-real false)
 
 (defn draw-header [text gr col row]
   (let [[x y] (in-grid gr col row)]
     (q/text text (+ x 4) (+ y 4))))
-
-(def max-bytes-per-second 500000)
 
 (defn setup []
   (q/background 0)
   (q/no-stroke)
   (q/fill 255)
   (q/text-align :left :top)
-  (arduino/start)
+  (if for-real (arduino/start))
   (let [sn (sniff)
         gr (grid (q/width) (q/height) [:flex] [24 :flex
                                                24 :flex
@@ -46,7 +43,7 @@
                                             :grid [gr 0 1]
                                             :start-time start-time)
               :bytes-per-second (create-chart :stroke 255
-                                              :range [0 max-bytes-per-second]
+                                              :range [0 4]
                                               ;:value-scale #(Math/log10 %)
                                               :grid [gr 0 3]
                                               :start-time start-time)
@@ -68,15 +65,18 @@
                                         :start-time start-time)}}))
 
 (defn update [state]
+  ;(println (:last-bytes state))
+  ;(println (-> @(:last-bytes state) (or 0) (max 1) (Math/log10)))
   (-> state
       (update-in [:charts :frequency-all] update-chart (interpolate (:last-count-all state) ival))
       (update-in [:charts :frequency-data] update-chart (interpolate (:last-count-data state) ival))
-      (update-in [:charts :bytes-per-second] update-chart (interpolate (:last-bytes state) ival))
+      (update-in [:charts :bytes-per-second] update-chart (interpolate (delay (-> @(:last-bytes state) (or 0) (max 1) (Math/log10))) ival))
       (update-in [:charts :motor-l] update-chart (interpolate (:last-arduino-data state) [:motor-l] 100))
       (update-in [:charts :motor-r] update-chart (interpolate (:last-arduino-data state) [:motor-r] 100))
       (update-in [:charts :pressure-l] update-chart (constantly (or (:pressure-l @(:last-arduino-data state)) 0)))
       (update-in [:charts :pressure-r] update-chart (constantly (or (:pressure-r @(:last-arduino-data state)) 0)))
-      (update-in [:charts :bytes-per-second :range 1] (fn [_] max-bytes-per-second))))
+      ;(update-in [:charts :bytes-per-second :range 1] (fn [_] @max-bytes-per-second))
+      ))
 
 (defn draw [{:keys [charts last-arduino-data] :as state}]
   (doseq [[_ c] charts] (draw-chart c))
@@ -94,7 +94,7 @@
         left (int (q/map-range v min max 80 5))
         right (int (q/map-range v min max 97 32))]
     ;(println orig-v w left right)
-    (arduino/set-motors left right))
+    (if for-real (arduino/set-motors left right)))
 
   (comment
     (q/fill 0)
@@ -102,9 +102,22 @@
     (q/fill 255)
     (q/text (pr-str @last-arduino-data) 0 10)))
 
+(defn dbg [f]
+  (fn [v]
+    (let [n (f v)]
+      (println n)
+      n)))
+
+(defn key-pressed [state {:keys [key]}]
+  (let [cur [:charts :bytes-per-second :range 1]]
+    (case key
+      :up (update-in state cur (dbg inc))
+      :down (update-in state cur (dbg dec))
+      state)))
+
 (defn on-close [state]
   (stop (:sniffer state))
-  (arduino/stop))
+  (if for-real (arduino/stop)))
 
 (q/defsketch visualize
              :title "Wi-Fi"
@@ -112,6 +125,7 @@
              :update update
              :draw draw
              :on-close on-close
+             :key-pressed key-pressed
              :size [768 768]
              :features [:keep-on-top]
              :middleware [m/fun-mode])

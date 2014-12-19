@@ -49,6 +49,14 @@
           (float (+ (* (- 1 t) last-value) (* t (get-in @value cursor)))))
         (get-in @value cursor)))))
 
+(defn smootherstep [value ival]
+  (fn [now last-time last-value]
+    (if (and last-time last-value)
+      (let [t (/ (- now last-time) ival)
+            t' (* t t t (+ (* t (- (* t 6) 15)) 10))]
+        (float (+ (* (- 1 t') last-value) (* t' @value))))
+      @value)))
+
 #_(defn spreader [in ival out]
   ;; keep track of count-values, curr and prev values (use sliding buffer?)
   ;; make sure that at end of interval 2, all packets from interval 1 were
