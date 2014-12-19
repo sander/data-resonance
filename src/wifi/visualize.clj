@@ -11,8 +11,8 @@
 (def ival 500)
 (def for-real true)
 (def table true)
-(def motor-l (if table [100 50]))
-(def motor-r (if table [100 50]))
+(def motor-l (if table [130 50]))
+(def motor-r (if table [130 50]))
 
 (defn draw-header [text gr col row]
   (let [[x y] (in-grid gr col row)]

@@ -1,9 +1,7 @@
 #include <FeedbackServo.h>
 #include <Servo.h>
 
-// TODO input values from clojure >> take max value from sink/raise and that
-
-//#define FINAL
+#define FINAL
 
 #ifdef FINAL
 #define PRESSURE_L A1
@@ -12,6 +10,10 @@
 #define POT_R A2
 #define SERVO_L 5
 #define SERVO_R 6
+#define UP_L 50
+#define UP_R 50
+#define DOWN_L 130
+#define DOWN_R 130
 #define MIN_L 0
 #define MAX_L 180
 #define MIN_R 0
@@ -41,6 +43,9 @@ int pressureR;
 int targetL = 0;
 int targetR = 0;
 
+int touchTargetL = UP_L;
+int touchTargetR = UP_R;
+
 FeedbackServo servoL;
 FeedbackServo servoR;
 
@@ -61,7 +66,7 @@ void setup() {
   servoR.mconstrain(MIN_R, MAX_R);
   servoR.setReversed(true);
   
-  establish();
+  //establish();
 }
 
 void loop() {
@@ -115,9 +120,14 @@ void update() {
   pressureL = analogRead(PRESSURE_L);
   pressureR = analogRead(PRESSURE_R);
   
+  adjustMotorsToPressure();
   
-  servoL.set(targetL);
-  servoR.set(targetR);
+  //servoL.set(max(targetL, touchTargetL));
+  //servoR.set(max(targetR, touchTargetR));
+  servoL.set(touchTargetL);
+  servoR.set(touchTargetR);
+  //servoL.set(targetL);
+  //servoR.set(targetR);
   
   /*
   adjustMotorsToPressure();
@@ -139,43 +149,39 @@ boolean shouldSink() {
 }
 
 void sink() {
-  int setL = servoL.settingMicro();
-  int setR = servoR.settingMicro();
-  if (setL < MAX_L) { servoL.set(setL + sinkStep()); }
-  if (setR < MAX_R) { servoR.set(setR + sinkStep()); }
+  if (touchTargetL < DOWN_L) { touchTargetL += sinkStep(); }
+  if (touchTargetR < DOWN_R) { touchTargetR += sinkStep(); }
   lastSunk = millis();
 }
 
 boolean shouldRaise() {
-  return (max(pressureL, pressureR) > requiredStaticPressure()) && (millis() - lastRaised > raiseTimeout());
+  return (min(pressureL, pressureR) > requiredStaticPressure()) && (millis() - lastRaised > raiseTimeout());
 }
 
 void raise() {
-  int setL = servoL.settingMicro();
-  int setR = servoR.settingMicro();
-  if (setL > MIN_L) { servoL.setMicro(setL - raiseStep()); }
-  if (setR > MIN_R) { servoR.setMicro(setR - raiseStep()); }
+  if (touchTargetL > UP_L) { touchTargetL += raiseStep(); }
+  if (touchTargetR > UP_R) { touchTargetR += raiseStep(); }
   lastRaised = millis();
 }
 
 int requiredStaticPressure() {
 #ifdef FINAL
-  return 700;
+  return 1000;
 #else
   return 830;
 #endif
 }
 
 int requiredSinkPressure() {
-  return 800;
+  return 900;
 }
 
 int sinkTimeout() {
-  return 0;
+  return 10;
 }
 
 int raiseTimeout() {
-  return 0;
+  return 10;
 }
 
 int sinkStep() {
@@ -183,5 +189,5 @@ int sinkStep() {
 }
 
 int raiseStep() {
-  return 1;
+  return -1;
 }
