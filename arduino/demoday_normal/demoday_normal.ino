@@ -2,6 +2,7 @@
 #include <Servo.h>
 
 #define FINAL
+//#define TOUCH
 
 #ifdef FINAL
 #define PRESSURE_L A1
@@ -66,7 +67,7 @@ void setup() {
   servoR.mconstrain(MIN_R, MAX_R);
   servoR.setReversed(true);
   
-  //establish();
+  establish();
 }
 
 void loop() {
@@ -120,14 +121,14 @@ void update() {
   pressureL = analogRead(PRESSURE_L);
   pressureR = analogRead(PRESSURE_R);
   
+#ifdef TOUCH
   adjustMotorsToPressure();
-  
-  //servoL.set(max(targetL, touchTargetL));
-  //servoR.set(max(targetR, touchTargetR));
-  servoL.set(touchTargetL);
-  servoR.set(touchTargetR);
-  //servoL.set(targetL);
-  //servoR.set(targetR);
+  servoL.set(max(targetL, touchTargetL));
+  servoR.set(max(targetR, touchTargetR));
+#else
+  servoL.set(targetL);
+  servoR.set(targetR);
+#endif
   
   /*
   adjustMotorsToPressure();
@@ -173,11 +174,11 @@ int requiredStaticPressure() {
 }
 
 int requiredSinkPressure() {
-  return 900;
+  return 850;
 }
 
 int sinkTimeout() {
-  return 10;
+  return 5;
 }
 
 int raiseTimeout() {
